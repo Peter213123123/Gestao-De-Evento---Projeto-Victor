@@ -1,124 +1,217 @@
-# 🎓 API de Gestão de Eventos Acadêmicos
-> **Substituição de controles manuais por uma solução centralizada.**
-
-⚠️ **Atenção:** Este documento trata do cenário de **EVENTOS ACADÊMICOS** — inscrições, submissão de artigos, comitê científico e certificados. Não deve ser confundido com o outro documento do grupo, sobre a API de gerenciamento de PROJETOS acadêmicos (cadastro de usuários, projetos, participantes e status). São dois cenários distintos.
-
-**Síntese do problema:** A instituição precisa de uma API para gerenciar eventos acadêmicos, inscrições, usuários e emissão de certificados, substituindo controles manuais por uma solução centralizada.
-
+Aslley Emanuel Da Costa Mariano - 01878630
+Edson Rodrigues Cardoso Dos Santos - 01351404
+Fábio Luis Damasceno da Silva - 012212500
+João Paulo Romão Sampaio de Melo - 01871330
+Pedro Felipe Santiago Neto - 01891949
+Sandrielly Maria Farias da Silva Alves Bezerra - 01904552
+Caio Victor Barbosa Monteiro - 01882905
+# Gerenciador de Eventos Acadêmicos
 ---
 
-## 1. Contexto do Problema
+1. Contexto do Problema
 
-### 1.1 Qual problema o sistema resolve?
-A organização de um evento acadêmico (congresso, simpósio, jornada científica) envolve vários processos que, quando feitos manualmente, ficam espalhados entre planilhas, e-mails e controles isolados de cada setor: inscrições, pagamento, submissão de artigos, avaliação pelo comitê científico, controle de presença e emissão de certificados. Isso gera retrabalho, atraso na comunicação entre setores e risco de erro por exemplo, emitir um certificado sem confirmar a frequência mínima, ou perder o controle de qual artigo já foi avaliado.
+    Qual problema o sistema resolve? Atualmente, a gestão de eventos acadêmicos na instituição é feita de forma manual e descentralizada (planilhas, formulários soltos), o que gera retrabalho, perda de dados, inscrições duplicadas e lentidão na emissão de certificados.
 
-### 1.2 Quem vai usar?
-A plataforma atende dois grupos: as equipes internas que organizam o evento e os participantes externos. Cada perfil tem acesso mapeado às suas próprias responsabilidades:
+    Quem vai usar? Alunos (participantes), Professores/Coordenadores (organizadores) e a Secretaria/TI da instituição (administradores).
 
-| Perfil | Papel no evento |
-| :--- | :--- |
-| **Participante** | Inscreve-se, submete artigos, faz check-in e emite certificados e recibos. |
-| **Comitê Científico** | Avalia artigos em fluxo duplo-cego e define o status de aprovação. |
-| **Marketing** | Criar cupons e campanhas, acompanhar a conversão de inscrições. |
-| **Tecnologia / Logística** | Configura salas, check-in e suporte técnico durante o evento. |
-| **Secretaria** | Confere dados cadastrais e presta atendimento aos participantes. |
-| **Organizador** | Configura lotes, cupons, delega artigos e dispara certificados. |
-| **Administrador da Plataforma** | Gerencia integrações globais, segurança e contas de organizadores de múltiplos eventos. |
+    Qual o objetivo da API? Centralizar todo o fluxo de eventos acadêmicos, desde a criação da atividade e controle de capacidade, até a gestão de inscrições e, no futuro, a emissão automatizada de certificados.
 
-### 1.3 Qual o objetivo da plataforma?
-**Objetivo geral:** Centralizar, em uma solução única, o fluxo completo de um evento acadêmico inscrição, submissão e avaliação de trabalhos, controle de presença e emissão de certificados — aplicando de forma automática as regras de acesso de cada perfil, do participante ao administrador da plataforma.
+    Qual o escopo da primeira versão? O MVP (Minimum Viable Product) focará no CRUD de Usuários, criação de Eventos e processamento de Inscrições, com persistência em banco de dados e documentação Swagger ativa.
 
-**Critérios de aceitação**: o objetivo é considerado atingido quando o sistema permitir:
-- [x] Inscrição, submissão e pagamento integrados em um único fluxo, sem controle manual paralelo;
-- [x] Avaliação de artigos em duplo-cego, sem exposição de identidade entre autor e avaliador;
-- [x] Emissão de certificado bloqueada automaticamente quando a frequência mínima não é atingida;
-- [x] Verificação pública da autenticidade de qualquer certificado emitido.
+2. Definição dos Perfis de Usuário
+Perfil	Descrição
+Admin	Possui controle total. Gerencia todos os usuários, eventos do sistema e configurações globais.
+Organizador	Professores ou coordenadores. Podem criar, editar e gerenciar apenas os próprios eventos e listar os inscritos neles.
+Participante	Alunos ou visitantes. Podem visualizar eventos disponíveis, realizar e cancelar a própria inscrição.
+3. Regras de Negócio
 
-### 1.4 Qual o escopo da primeira versão?
-*   ✅ **Incluído na v1:** Inscrição com categorias de público e lotes financeiros; formulário de dados logísticos (acessibilidade e restrições alimentares); submissão de artigos integrada ao pagamento; avaliação duplo-cega pelo comitê científico; check-in por QR Code ou tempo de login; emissão de certificados com trava de frequência mínima e autenticação antifraude; perfis de Participante, Organizador e Administrador da Plataforma.
-*   ❌ **Fora do escopo da v1:** Emissão automática de nota fiscal, aplicativo mobile dedicado, transmissão ao vivo nativa e interface multilíngue funcionalidades previstas para versões futuras.
+(10 regras essenciais para o funcionamento do sistema)
 
-### 1.5 Cadastro e gerenciamento de contas de usuário
-Além de definir o que cada perfil pode fazer dentro do sistema, a plataforma também define como a conta de cada perfil é criada:
-*   **Participante:** A conta é criada automaticamente no momento da inscrição, a partir dos dados preenchidos no formulário não exige cadastro prévio separado.
-*   **Comitê Científico, Marketing, Tecnologia/Logística e Secretaria:** Contas internas criadas pelo Organizador do evento, já vinculadas ao perfil funcional correspondente.
-*   **Organizador:** Conta criada pelo Administrador da Plataforma, que define o evento (ou eventos) sob sua responsabilidade.
-*   **Administrador da Plataforma:** Perfil inicial criado na implantação do sistema; novos administradores só podem ser incluídos por um administrador já existente.
+    Um usuário não pode se inscrever duas vezes no mesmo evento.
 
----
+    Um evento não pode aceitar novas inscrições se a capacidade_maxima for atingida.
 
-## 2. Estrutura de Setores
-A plataforma substitui planilhas, e-mails avulsos e controles manuais por módulos integrados, cada um atendendo a um setor específico da organização do evento, com dados compartilhados em tempo real entre eles:
+    Não é permitido o cadastro de um evento com data_evento no passado.
 
-| Setor | Como a plataforma atende |
-| :--- | :--- |
-| **Coordenação Geral** | Painel executivo consolidado: número de inscritos por lote, receita acumulada, ocupação de salas e taxa de conversão. Aprova decisões estratégicas e delegue permissões de organizador. |
-| **Comitê Científico** | Módulo de avaliação de artigos com fluxo duplo-cego: distribuição automática ou manual de submissões, registro de pareceres e notas, cálculo de status sem que autor e avaliador se identifiquem. |
-| **Marketing** | Criação de cupons e campanhas promocionais, geração de páginas de divulgação, acompanhamento de métricas de conversão e integração com ferramentas externas. |
-| **Tecnologia / Logística**| Configuração da infraestrutura do evento: capacidade de salas, check-in por QR Code, emissão de crachás, monitoramento em tempo real e suporte técnico. |
-| **Secretaria** | Conferência de dados, emissão de recibos e comprovantes, atendimento a solicitações e suporte na emissão manual de documentos. |
+    O e-mail de um usuário deve ser único em todo o sistema.
 
-> 💡 **Ponto central:** Nenhum setor opera de forma isolada. Uma inscrição atualiza o painel da Coordenação, uma aprovação do Comitê libera o certificado, e um check-in da Logística reflete na frequência da Secretaria.
+    Um participante só pode cancelar a sua própria inscrição; ele não pode alterar inscrições de terceiros.
 
----
+    Apenas usuários com perfil "Admin" ou "Organizador" podem criar novos eventos.
 
-## 3. Fluxo de Inscrições Online
+    Um evento não pode ser excluído se já houver inscrições vinculadas a ele (deve ser inativado ou as inscrições canceladas primeiro).
 
-### 3.1 Categorias de público
-O sistema permite parametrizar categorias distintas (ex.: aluno, profissional, convidado, palestrante), cada uma com valor, cota de vagas e regras próprias de acesso às atividades.
+    A senha do usuário não pode trafegar ou ser salva em texto plano (deve utilizar hash).
 
-### 3.2 Viradas de lote financeiro
-Os lotes de preço são configurados com regras de virada automática, disparadas por data-limite ou por esgotamento de vagas. Ao atingir a condição, o sistema atualiza o valor cobrado nas próximas inscrições sem intervenção manual, mantendo o histórico de qual lote cada participante pagou.
+    Inscrições só podem ser realizadas em eventos que estejam com o status "Ativo".
 
-### 3.3 Formulários de dados logísticos
-O formulário de inscrição inclui campos configuráveis para necessidades de acessibilidade (cadeirante, intérprete de Libras, etc.) e restrições alimentares, informações repassadas automaticamente à Logística para o dimensionamento de recursos do evento.
+    A emissão de certificado (escopo futuro) será bloqueada para participantes que não tiverem o status de "Presença Confirmada".
 
-### 3.4 Integração pagamento × submissão de trabalhos
-A confirmação de pagamento e o módulo de submissão de artigos trabalham de forma integrada: a submissão pode ser configurada como condicionada à inscrição paga, ou seguir em trilha paralela até um prazo definido. Em qualquer caso, o status financeiro e o status da submissão ficam visíveis lado a lado.
+4. Entidades Principais do Sistema
 
----
+    Usuário: Necessário para identificar quem está acessando o sistema, permitindo autenticação e divisão de papéis.
 
-## 4. Permissões e Restrições de Usuários (Participantes)
-O participante padrão tem acesso mapeado apenas ao que envolve a sua própria inscrição e submissão:
+    Evento: O núcleo do sistema. Armazena as informações das atividades acadêmicas oferecidas.
 
-| ✅ Pode fazer | ❌ Não pode fazer |
-| :--- | :--- |
-| • Realizar inscrição em categorias de público<br>• Anexar e submeter artigos científicos<br>• Acompanhar status de aprovação de submissão<br>• Fazer check-in nas atividades via QR Code<br>• Emitir recibos e comprovantes de inscrição | • Alterar documentos após o encerramento dos prazos<br>• Acessar notas e identidade de avaliadores<br>• Gerar certificado sem atingir a presença mínima |
+    Inscrição: Tabela intermediária (tabela associativa) que conecta o Usuário ao Evento, registrando a data da inscrição e o status.
 
-*As travas de "não pode" são regras sistêmicas (ex: o formulário de artigo é bloqueado após o prazo e o botão de certificado só ativa com a frequência mínima).*
+5. Modelo de Dados / DER
 
----
+    Usuário (1) --- (N) Inscrição (Um usuário pode ter várias inscrições).
 
-## 5. Permissões e Restrições de Gestão
+    Evento (1) --- (N) Inscrição (Um evento pode ter várias inscrições).
 
-### 5.1 Organizador
-Tem controle operacional do evento, mas não tem acesso à camada estrutural.
+Estrutura Relacional Inicial:
 
-| ✅ Pode fazer | ❌ Não pode fazer |
-| :--- | :--- |
-| • Configurar lotes de inscrição e datas<br>• Criar e gerenciar cupons de desconto<br>• Delegar artigos ao comitê científico<br>• Acessar listas completas de inscritos<br>• Disparar emissão de certificados | • Alterar taxas fixas cobradas pelo gateway<br>• Apagar logs de auditoria financeira<br>• Alterar o código-fonte da plataforma |
+    usuarios (id [PK], nome, email, senha_hash, tipo_perfil, criado_em)
 
-### 5.2 Administrador da Plataforma (Superusuário)
-Opera a infraestrutura, mas segue restrições de conformidade.
+    eventos (id [PK], titulo, descricao, data_evento, capacidade, status, organizador_id [FK -> usuarios.id])
 
-| ✅ Pode fazer | ❌ Não pode fazer |
-| :--- | :--- |
-| • Gerenciar integrações globais (pagamento, analytics)<br>• Acessar logs de segurança e auditoria<br>• Gerenciar contas e permissões de organizadores<br>• Atuar em suporte técnico de nível 2 | • Visualizar dados sensíveis de cartão de crédito (PCI-DSS)<br>• Adulterar pareceres ou notas do comitê científico |
+    inscricoes (id [PK], usuario_id [FK -> usuarios.id], evento_id [FK -> eventos.id], data_inscricao, status)
 
----
+6. Dicionário de Dados
+Entidade	Campo	Tipo	Obrigatório	Regra / Restrição
+Usuário	email	string	Sim	Único, formato de e-mail válido.
+Usuário	tipo_perfil	string	Sim	Apenas: "admin", "organizador", "participante".
+Evento	capacidade	int	Sim	Deve ser maior que 0.
+Evento	data_evento	date	Sim	Não pode ser menor que a data atual.
+Evento	status	string	Sim	Apenas: "ativo", "concluido", "cancelado".
+Inscrição	status	string	Sim	Apenas: "confirmada", "cancelada", "presente".
+7. Contratos de Entrada e Saída da API
 
-## 6. Emissão e Validação de Certificados
+POST /api/v1/usuarios (Criação de Usuário)
+Entrada (Request):
+JSON
 
-### 6.1 Controle de presença
-A frequência é apurada por dois métodos:
-*   **Presencial:** Check-in por meio da leitura de QR Code individual em cada atividade.
-*   **On-line/híbrido:** Tempo de login registrado automaticamente na sessão, comparado com a duração total da atividade.
+{
+  "nome": "João Silva",
+  "email": "joao@email.com",
+  "senha": "senhaforte123",
+  "tipo_perfil": "participante"
+}
 
-### 6.2 Trava de frequência mínima
-O sistema soma a presença registrada em cada atividade e compara ao percentual mínimo configurado (ex: 75%). Abaixo do limite, a opção de emitir certificado permanece bloqueada automaticamente.
+Saída (Response 201):
+JSON
 
-### 6.3 Geração dinâmica do documento
-Uma vez liberado, o certificado é montado dinamicamente a partir de um *template*, preenchido com o nome do participante, carga horária, título das atividades e data, gerando um arquivo individual.
+{
+  "id": 1,
+  "nome": "João Silva",
+  "email": "joao@email.com",
+  "tipo_perfil": "participante",
+  "criado_em": "2026-09-24T10:00:00"
+}
 
-### 6.4 Autenticação antifraude
-Cada certificado recebe um código hash único e um link/QR Code de verificação pública. Qualquer pessoa pode confirmar a autenticidade diretamente na base da plataforma, impedindo falsificações.
+(Nota: A senha nunca retorna no payload de saída).
+8. Definição dos Status Codes
+Situação	Status HTTP
+Registro criado com sucesso (Usuário, Evento, Inscrição)	201 Created
+Consulta realizada com sucesso (Listagens)	200 OK
+Exclusão realizada com sucesso	204 No Content
+Erro de validação de dados (Pydantic/Schema)	422 Unprocessable Entity
+Registro não encontrado (ex: buscar ID inexistente)	404 Not Found
+Erro de regra de negócio (ex: evento lotado)	400 Bad Request
+Usuário não autenticado (Falta de token)	401 Unauthorized
+Sem permissão (ex: Participante tentando criar evento)	403 Forbidden
+9. Padrão de Resposta e Erro
+
+Foi adotado um envelope padrão para garantir que o front-end saiba exatamente como ler as respostas.
+
+Exemplo de Erro (Regra de Negócio / 400):
+JSON
+
+{
+  "success": false,
+  "error": "CapacidadeMaximaAtingida",
+  "message": "Não é possível realizar a inscrição. O evento atingiu sua capacidade máxima."
+}
+
+10. Matriz de Permissões
+Funcionalidade	Admin	Organizador	Participante
+Criar/Editar Eventos	Sim	Sim	Não
+Excluir Eventos	Sim	Não	Não
+Listar Eventos	Sim	Sim	Sim
+Inscrever-se em Eventos	Não	Não	Sim
+Listar Inscritos no Evento	Sim	Sim	Não
+Cancelar Inscrição (Própria)	Não	Não	Sim
+11. Estrutura Inicial do Projeto
+
+Organizada para escalabilidade, separando responsabilidades:
+Plaintext
+
+app/
+├── api/
+│   └── v1/
+│       ├── routers/
+│       │   ├── usuarios.py
+│       │   ├── eventos.py
+│       │   └── inscricoes.py
+├── core/
+│   ├── config.py (Variáveis de ambiente)
+│   └── database.py (Conexão e Sessão)
+├── models/ (Classes SQLAlchemy)
+├── schemas/ (Classes Pydantic para I/O)
+└── main.py (Instância do FastAPI)
+
+12. Tecnologias Escolhidas e Justificativa
+Tecnologia	Uso no projeto
+Python 3 / FastAPI	Construção da API REST. Escolhido pela alta performance, tipagem estática e geração automática do Swagger.
+SQLite / SQL Server	SQLite será usado no MVP para desenvolvimento rápido. A arquitetura permitirá migração fácil para SQL Server em produção.
+SQLAlchemy	Mapeamento ORM, evitando queries manuais e protegendo contra SQL Injection.
+Alembic	Controle de versão do banco de dados (Migrations), garantindo que a equipe mantenha o esquema sincronizado.
+Pydantic	Validação rigorosa dos dados de entrada e saída, retornando erros claros caso o usuário envie JSON inválido.
+13. Estratégia de Banco e Migrations
+
+    Banco MVP: SQLite (arquivo local).
+
+    Migrations: Controladas via Alembic.
+
+    Comando inicial utilizado:
+    alembic init alembic
+    alembic revision --autogenerate -m "criacao_tabelas_iniciais_usuario_evento_inscricao"
+    alembic upgrade head
+
+14. Backlog do Projeto
+ID	História de Usuário (User Story)	Prioridade
+US01	Como usuário, quero me cadastrar no sistema para poder acessá-lo.	Alta
+US02	Como administrador, quero visualizar todos os usuários cadastrados.	Média
+US03	Como organizador, quero criar um evento definindo data e limite de vagas.	Alta
+US04	Como organizador, quero editar as informações de um evento criado por mim.	Média
+US05	Como participante, quero listar todos os eventos ativos para escolher qual participar.	Alta
+US06	Como participante, quero me inscrever em um evento específico.	Alta
+US07	Como participante, quero cancelar minha inscrição caso eu desista.	Média
+US08	Como organizador, quero listar todos os participantes inscritos no meu evento.	Alta
+US09	Como admin, quero inativar um evento que foi cancelado pela instituição.	Baixa
+US10	Como organizador, quero dar "check-in" na presença dos inscritos.	Baixa (V2)
+15. Critérios de Aceitação
+
+Funcionalidades principais
+
+Para Cadastro de Evento (US03):
+
+    O sistema deve exigir título, data e capacidade.
+
+    A data do evento não pode ser salva se for anterior ao dia de hoje.
+
+    A capacidade deve ser um número inteiro maior que 0.
+
+    O sistema deve atribuir automaticamente o status "ativo" na criação.
+
+    O sistema deve retornar status 201 Created em caso de sucesso.
+
+Para Inscrição em Evento (US06):
+6. O sistema deve vincular o ID do participante logado ao ID do evento.
+7. O sistema deve rejeitar a inscrição e retornar erro 400 se a capacidade máxima já foi atingida.
+8. O sistema deve rejeitar a inscrição se o participante já estiver inscrito no mesmo evento.
+9. O sistema deve retornar status 201 Created e os dados da inscrição (data e hora).
+10. Se o ID do evento fornecido não existir, o sistema deve retornar 404 Not Found.
+16. Protótipo Inicial da API
+
+ O MVP técnico inicial já possui:
+
+    Projeto FastAPI configurado e rodando localmente na porta 8000.
+
+    Documentação interativa Swagger (OAS 3.1) operando na rota /docs.
+
+    Rotas estruturadas e modularizadas (ex: /api/v1/usuarios/, /api/v1/eventos/).
+
+    Schemas de validação Pydantic aplicados (ex: validando o body da requisição POST de usuários).
