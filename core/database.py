@@ -1,17 +1,11 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import firebase_admin
+from firebase_admin import credentials, firestore
+from core.config import settings
 
-# Cria um ficheiro local chamado sistema_eventos.db
-SQLALCHEMY_DATABASE_URL = "sqlite:///./sistema_eventos.db"
+# Garante que o Firebase não seja inicializado duas vezes
+if not firebase_admin._apps:
+    cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+    firebase_admin.initialize_app(cred)
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Exporta o db para ser usado nas rotas
+db = firestore.client()

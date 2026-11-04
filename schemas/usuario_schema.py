@@ -1,16 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
-class UsuarioCreate(BaseModel):
+class UsuarioCriar(BaseModel):
     nome: str
-    email: EmailStr
+    email: str
     senha: str
     tipo_perfil: str
-
-class UsuarioResponse(BaseModel):
-    id: int
-    nome: str
-    email: EmailStr
-    tipo_perfil: str
-
-    class Config:
-        from_attributes = True

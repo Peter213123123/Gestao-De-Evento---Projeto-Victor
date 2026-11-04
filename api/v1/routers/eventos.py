@@ -1,15 +1,19 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
-from core.database import get_db
-from models.evento import Evento
-from schemas.evento_schema import EventoCreate, EventoResponse
+from fastapi import APIRouter, Depends
+from core.auth import verificar_admin_organizador, verificar_admin, obter_usuario_atual
 
 router = APIRouter()
 
-@router.post("/", response_model=EventoResponse, status_code=status.HTTP_201_CREATED)
-def criar_evento(evento: EventoCreate, db: Session = Depends(get_db)):
-    novo_evento = Evento(**evento.model_dump())
-    db.add(novo_evento)
-    db.commit()
-    db.refresh(novo_evento)
-    return novo_evento
+# Qualquer utilizador logado pode listar
+@router.get("/")
+def listar_eventos(usuario: dict = Depends(obter_usuario_atual)):
+    return {"mensagem": "Lista de eventos"}
+
+# Apenas Admin e Organizador podem criar
+@router.post("/")
+def criar_evento(dados_evento: dict, usuario: dict = Depends(verificar_admin_organizador)):
+    return {"mensagem": "Evento criado!"}
+
+# Apenas Admin pode excluir
+@router.delete("/{evento_id}")
+def excluir_evento(evento_id: str, usuario: dict = Depends(verificar_admin)):
+    return {"mensagem": "Evento excluído!"}

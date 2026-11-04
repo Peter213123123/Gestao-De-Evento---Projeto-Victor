@@ -1,25 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from core.database import get_db
-from models.usuario import Usuario
-from schemas.usuario_schema import UsuarioCreate, UsuarioResponse
+from fastapi import APIRouter
+from schemas.usuario_schema import UsuarioCriar
+from core.database import db 
+from core.security import get_password_hash
 
+# Cria a variável router que estava faltando!
 router = APIRouter()
 
-@router.post("/", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
-def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
-    db_usuario = db.query(Usuario).filter(Usuario.email == usuario.email).first()
-    if db_usuario:
-        raise HTTPException(status_code=400, detail="Email já cadastrado.")
+@router.post("/")
+def criar_usuario(usuario: UsuarioCriar):
+    # 1. Criptografar a senha
+    senha_criptografada = get_password_hash(usuario.senha)
     
-    # Exemplo simples. Em produção, a senha deve ser criptografada.
-    novo_usuario = Usuario(
-        nome=usuario.nome,
-        email=usuario.email,
-        senha_hash=usuario.senha,
-        tipo_perfil=usuario.tipo_perfil
-    )
-    db.add(novo_usuario)
-    db.commit()
-    db.refresh(novo_usuario)
-    return novo_usuario
+    # 2. Preparar os dados como dicionário
+    dados_usuario = {
+        "nome": usuario.nome,
+        "email": usuario.email,
+        "senha": senha_criptografada,
+        "tipo_perfil": usuario.tipo_perfil
+    }
+    
+    # 3. Guardar no Firebase!
+    novo_doc = db.collection("usuarios").add(dados_usuario)
+    
+    return {
+        "id": novo_doc[1].id, # Isto vai devolver o ID alfanumérico do Firebase
+        "nome": usuario.nome,
+        "email": usuario.email,
+        "tipo_perfil": usuario.tipo_perfil
+    }

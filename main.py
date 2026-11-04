@@ -1,10 +1,7 @@
 from fastapi import FastAPI
-from core.database import engine
 from models import base
 from api.api import api_router
 
-# Cria as tabelas no banco de dados automaticamente (ideal para esta primeira entrega)
-base.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="API de Gestão de Eventos Acadêmicos",
