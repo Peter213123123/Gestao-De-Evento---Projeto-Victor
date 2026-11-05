@@ -41,7 +41,7 @@ API REST para centralizar a gestão de eventos acadêmicos: criação de eventos
 14. [Backlog](#14-backlog)
 15. [Critérios de Aceitação](#15-critérios-de-aceitação)
 16. [Protótipo Inicial](#16-protótipo-inicial)
-17. [Próximas Implementações](#17-próximas-implementações)
+17. [Implementações Realizadas](#17-implementações-realizadas)
 
 ---
 
