@@ -9,11 +9,9 @@ class EventoCreate(BaseModel):
     capacidade: int
 
 class EventoResponse(BaseModel):
-    id: int
+    id: str
     titulo: str
-    descricao: Optional[str]
+    descricao: Optional[str] = None
     data_evento: date
     capacidade: int
-
-    class Config:
-        from_attributes = True
+    status: str = "ativo"

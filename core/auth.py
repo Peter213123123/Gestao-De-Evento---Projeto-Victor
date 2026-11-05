@@ -1,14 +1,17 @@
-from fastapi import HTTPException, Header, Depends
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from core.config import settings
 
-# Extrai o perfil do token enviado no cabeçalho
-def obter_usuario_atual(authorization: str = Header(...)):
+security = HTTPBearer()
+
+# Extrai o perfil do token enviado pelo cadeado Authorize do Swagger
+def obter_usuario_atual(credenciais: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        token = authorization.split(" ")[1]
+        token = credenciais.credentials
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload # Retorna os dados do utilizador, incluindo o 'tipo_perfil'
-    except:
+        return payload  # Retorna os dados do utilizador, incluindo o 'tipo_perfil'
+    except Exception:
         raise HTTPException(status_code=401, detail="Token inválido ou ausente")
 
 # Bloqueia se não for Admin ou Organizador

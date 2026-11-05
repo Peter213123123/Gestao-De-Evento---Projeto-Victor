@@ -1,14 +1,11 @@
 from pydantic import BaseModel
 
 class InscricaoCreate(BaseModel):
-    id_usuario: int
-    id_evento: int
+    id_usuario: str
+    id_evento: str
 
 class InscricaoResponse(BaseModel):
-    id: int
-    id_usuario: int
-    id_evento: int
+    id: str
+    id_usuario: str
+    id_evento: str
     status: str
-
-    class Config:
-        from_attributes = True
