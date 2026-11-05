@@ -8,6 +8,13 @@ class EventoCreate(BaseModel):
     data_evento: date
     capacidade: int
 
+class EventoUpdate(BaseModel):
+    titulo: Optional[str] = None
+    descricao: Optional[str] = None
+    data_evento: Optional[date] = None
+    capacidade: Optional[int] = None
+    status: Optional[str] = None
+
 class EventoResponse(BaseModel):
     id: str
     titulo: str

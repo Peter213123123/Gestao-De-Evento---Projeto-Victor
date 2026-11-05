@@ -1,5 +1,11 @@
 fastapi
 uvicorn
-sqlalchemy
 pydantic
 pydantic-settings
+python-dotenv
+firebase-admin
+passlib[bcrypt]
+bcrypt==4.0.1
+PyJWT
+python-multipart
+pip freeze > requirements.txt

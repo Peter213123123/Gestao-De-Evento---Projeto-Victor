@@ -1,12 +1,19 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from schemas.usuario_schema import UsuarioCriar, UsuarioLogin, UsuarioResponse
 from core.database import db
 from core.security import get_password_hash, verify_password, create_access_token
+from core.auth import get_current_user, verificar_admin
 
 router = APIRouter()
 
 @router.post("/", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
 def criar_usuario(usuario: UsuarioCriar):
+    # Verifica se o e-mail já está cadastrado no Firestore
+    existente = db.collection("usuarios").where("email", "==", usuario.email).limit(1).get()
+    if existente:
+        raise HTTPException(status_code=400, detail="E-mail já cadastrado no sistema")
+
     senha_criptografada = get_password_hash(usuario.senha)
     dados_usuario = {
         "nome": usuario.nome,
@@ -22,6 +29,34 @@ def criar_usuario(usuario: UsuarioCriar):
         "tipo_perfil": usuario.tipo_perfil
     }
 
+@router.get("/me", response_model=UsuarioResponse)
+def obter_meu_perfil(current_user: dict = Depends(get_current_user)):
+    """Rota obrigatória /usuarios/me que retorna os dados do próprio usuário autenticado."""
+    usuario_id = current_user.get("usuario_id")
+    if usuario_id:
+        doc = db.collection("usuarios").document(usuario_id).get()
+        if doc.exists:
+            dados = doc.to_dict()
+            return {
+                "id": doc.id,
+                "nome": dados.get("nome", ""),
+                "email": dados.get("email", current_user.get("sub", "")),
+                "tipo_perfil": dados.get("tipo_perfil", "participante")
+            }
+
+    email = current_user.get("sub")
+    docs = db.collection("usuarios").where("email", "==", email).limit(1).get()
+    if not docs:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    doc = docs[0]
+    dados = doc.to_dict()
+    return {
+        "id": doc.id,
+        "nome": dados.get("nome", ""),
+        "email": dados.get("email", email),
+        "tipo_perfil": dados.get("tipo_perfil", "participante")
+    }
+
 @router.get("/", response_model=list[UsuarioResponse])
 def listar_usuarios():
     docs = db.collection("usuarios").stream()
@@ -33,7 +68,7 @@ def listar_usuarios():
     return lista
 
 @router.delete("/{usuario_id}")
-def excluir_usuario(usuario_id: str):
+def excluir_usuario(usuario_id: str, current_user: dict = Depends(verificar_admin)):
     doc_ref = db.collection("usuarios").document(usuario_id)
     if not doc_ref.get().exists:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -41,14 +76,15 @@ def excluir_usuario(usuario_id: str):
     return {"mensagem": "Usuário excluído com sucesso!"}
 
 @router.post("/login")
-def login(credenciais: UsuarioLogin):
-    docs = db.collection("usuarios").where("email", "==", credenciais.email).limit(1).get()
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Endpoint de Login usando OAuth2PasswordRequestForm (username recebe o email)."""
+    docs = db.collection("usuarios").where("email", "==", form_data.username).limit(1).get()
     if not docs:
         raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
-    
+
     doc = docs[0]
     usuario_db = doc.to_dict()
-    if not verify_password(credenciais.senha, usuario_db.get("senha", "")):
+    if not verify_password(form_data.password, usuario_db.get("senha", "")):
         raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
 
     token = create_access_token({
