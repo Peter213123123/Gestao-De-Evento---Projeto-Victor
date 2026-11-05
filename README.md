@@ -217,3 +217,7 @@ O MVP técnico inicial já possui:
 * Documentação interativa Swagger (OAS 3.1) operando na rota `/docs`.
 * Rotas estruturadas e modularizadas (ex: `/api/v1/usuarios/`, `/api/v1/eventos/`).
 * Schemas de validação Pydantic aplicados (ex: validando o body da requisição POST de usuários).
+
+IMPLEMENTAÇÃO DE 
+
+1 - Configuração Inicial e Infraestrutura do Firebase
