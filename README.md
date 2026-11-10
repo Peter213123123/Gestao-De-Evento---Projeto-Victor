@@ -134,10 +134,11 @@ inscricoes (id [PK], usuario_id [FK -> usuarios.id], evento_id [FK -> eventos.id
 {
   "nome": "João Silva",
   "email": "joao@email.com",
-  "senha": "senhaforte123",
-  "tipo_perfil": "participante"
+  "senha": "senhaforte123"
 }
 ```
+
+> **Nota:** o perfil não é enviado no cadastro. Todo cadastro público cria um `participante`; somente um Admin altera o perfil.
 
 **Response `201 Created`:**
 
@@ -188,14 +189,65 @@ Foi adotado um envelope padrão para que o front-end saiba exatamente como ler a
 
 ## 10. Matriz de Permissões
 
+### 10.1 Matriz por funcionalidade (definida na 1ª Unidade)
+
 | Funcionalidade | Admin | Organizador | Participante |
 | :--- | :---: | :---: | :---: |
-| Criar/Editar eventos | ✅ | ✅ | ✅ |
-| Excluir eventos | ✅ | ✅  | ✅  |
+| Criar/Editar eventos | ✅ | ✅ | ❌ |
+| Excluir eventos | ✅ | ❌ | ❌ |
 | Listar eventos | ✅ | ✅ | ✅ |
-| Inscrever-se em eventos | ✅  |✅  | ✅ |
-| Listar inscritos no evento | ✅ | ✅ | ✅ |
-| Cancelar inscrição (própria) | ✅  |✅  | ✅ |
+| Inscrever-se em eventos | ❌ | ❌ | ✅ |
+| Listar inscritos no evento | ✅ | ✅ | ❌ |
+| Cancelar inscrição (própria) | ❌ | ❌ | ✅ |
+
+### 10.2 Matriz final por endpoint (implementada)
+
+Legenda: 🌐 público · 🔒 exige token (sem token → `401`) · ✅ permitido · ❌ negado (`403 Forbidden`)
+
+| Endpoint | Acesso | Admin | Organizador | Participante | Regra adicional |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `POST /api/v1/usuarios/` | 🌐 | — | — | — | O cadastro público sempre cria `participante` |
+| `POST /api/v1/usuarios/login` | 🌐 | — | — | — | Retorna o JWT |
+| `GET /api/v1/usuarios/me` | 🔒 | ✅ | ✅ | ✅ | Retorna apenas os dados do próprio usuário |
+| `GET /api/v1/usuarios/` | 🔒 | ✅ | ❌ | ❌ | — |
+| `PATCH /api/v1/usuarios/{id}/perfil` | 🔒 | ✅ | ❌ | ❌ | Admin não pode remover o próprio perfil de admin |
+| `DELETE /api/v1/usuarios/{id}` | 🔒 | ✅ | ❌ | ❌ | — |
+| `GET /api/v1/eventos/` | 🔒 | ✅ | ✅ | ✅ | — |
+| `POST /api/v1/eventos/` | 🔒 | ✅ | ✅ | ❌ | — |
+| `PUT /api/v1/eventos/{id}` | 🔒 | ✅ | ✅ | ❌ | — |
+| `DELETE /api/v1/eventos/{id}` | 🔒 | ✅ | ❌ | ❌ | — |
+| `POST /api/v1/inscricoes/` | 🔒 | ❌ | ❌ | ✅ | O `id_usuario` precisa ser o do token |
+| `GET /api/v1/inscricoes/` | 🔒 | ✅ | ✅ | ❌ | Lista os inscritos |
+| `PUT /api/v1/inscricoes/{id}` (`cancelada`) | 🔒 | ❌ | ❌ | ✅ | Somente a própria inscrição |
+| `PUT /api/v1/inscricoes/{id}` (`presente`) | 🔒 | ✅ | ✅ | ❌ | Registro de presença (check-in) |
+| `DELETE /api/v1/inscricoes/{id}` | 🔒 | ❌ | ❌ | ✅ | Somente a própria inscrição |
+| `GET /api/v1/certificados/` | 🔒 | ✅ | ✅ | ✅ | — |
+| `POST /api/v1/certificados/` | 🔒 | ✅ | ✅ | ❌ | — |
+| `DELETE /api/v1/certificados/{id}` | 🔒 | ✅ | ✅ | ❌ | — |
+
+### 10.3 Erros de acesso
+
+| Situação | Status |
+| :--- | :---: |
+| Sem token, token inválido ou token expirado | `401 Unauthorized` |
+| Token válido, mas o perfil não tem permissão para a ação | `403 Forbidden` |
+| Token válido, perfil correto, mas o recurso pertence a outro usuário | `403 Forbidden` |
+
+### 10.4 Como a matriz está no código
+
+- Os três perfis (`admin`, `organizador`, `participante`) e a matriz ficam em `core/permissoes.py`, no dicionário `MATRIZ` (ação → perfis autorizados).
+- Cada endpoint declara a ação com `Depends(permissao("nome_da_acao"))`. Para mudar uma permissão, edita-se somente o `MATRIZ`.
+- O perfil `tipo_perfil` é validado em `schemas/usuario_schema.py` (`Perfil`) e em `models/usuario.py`.
+
+### 10.5 Como criar o primeiro Admin
+
+O cadastro público cria apenas participantes. Para criar o primeiro admin:
+
+1. Cadastre o usuário normalmente em `POST /api/v1/usuarios/`.
+2. No console do Firebase, abra o Firestore, coleção `usuarios`, e altere o campo `tipo_perfil` desse documento para `admin`.
+3. Faça login de novo (o perfil fica gravado no token).
+
+Depois disso, o admin promove organizadores por `PATCH /api/v1/usuarios/{id}/perfil` com o corpo `{"tipo_perfil": "organizador"}`.
 
 ---
 
@@ -306,3 +358,4 @@ O MVP técnico já possui:
 - [x] **6.** Mecanismo de autenticação e JWT
 - [x] **7.** Rotas de usuário (cadastro e login)
 - [x] **8.** Proteção de rotas, revisão e evidências
+- [x] **9.** Perfis de usuário e matriz de permissões aplicada aos endpoints (`core/permissoes.py`)
