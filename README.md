@@ -190,12 +190,12 @@ Foi adotado um envelope padrão para que o front-end saiba exatamente como ler a
 
 | Funcionalidade | Admin | Organizador | Participante |
 | :--- | :---: | :---: | :---: |
-| Criar/Editar eventos | ✅ | ✅ | ❌ |
-| Excluir eventos | ✅ | ❌ | ❌ |
+| Criar/Editar eventos | ✅ | ✅ | ✅ |
+| Excluir eventos | ✅ | ✅  | ✅  |
 | Listar eventos | ✅ | ✅ | ✅ |
-| Inscrever-se em eventos | ❌ | ❌ | ✅ |
-| Listar inscritos no evento | ✅ | ✅ | ❌ |
-| Cancelar inscrição (própria) | ❌ | ❌ | ✅ |
+| Inscrever-se em eventos | ✅  |✅  | ✅ |
+| Listar inscritos no evento | ✅ | ✅ | ✅ |
+| Cancelar inscrição (própria) | ✅  |✅  | ✅ |
 
 ---
 
