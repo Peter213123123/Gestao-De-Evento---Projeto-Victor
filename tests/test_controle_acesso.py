@@ -13,7 +13,7 @@ MATRIZ_ESPERADA = {
     "cancelar_inscricao_propria": {"participante"},
 }
 
-# (método, caminho) de todas as rotas que exigem token
+# (método, caminho) de todas as rotas que exigem token!!
 ROTAS_PROTEGIDAS = [
     ("GET", "/api/v1/usuarios/me"),
     ("GET", "/api/v1/usuarios/"),
