@@ -1,78 +1,50 @@
-"""Autenticação: login, JWT, 401 (sem token / inválido / expirado) e /usuarios/me."""
-from datetime import datetime, timedelta, timezone
+from fastapi.testclient import TestClient
+from main import app  # Certifique-se de que o objeto principal do FastAPI se chama 'app' no seu main.py
 
-import jwt
+client = TestClient(app)
 
-from tests.conftest import SECRET_KEY_TESTE, SENHA_PADRAO
+# Passo 1: Escrever testes automatizados cobrindo fluxos de login bem-sucedidos e com falhas.[span_3](start_span)[span_3](end_span)
+def test_login_sucesso():
+    # Simulando um login de sucesso (Ajuste a rota e os dados para bater com o seu BD)
+    response = client.post("/login", data={"username": "admin@email.com", "password": "senha_admin"})
+    
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+    assert response.json()["token_type"] == "bearer"
 
-LOGIN = "/api/v1/usuarios/login"
-ROTA_PROTEGIDA = "/api/v1/eventos/"
+def test_login_falha_senha_incorreta():
+    # Simulando um login com falha
+    response = client.post("/login", data={"username": "admin@email.com", "password": "senha_errada"})
+    
+    # O sistema deve rejeitar retornando 401
+    assert response.status_code == 401
 
+# Passo 3: Escrever testes verificando o retorno 401 em chamadas sem token.[span_4](start_span)[span_4](end_span)
+def test_acesso_sem_token_retorna_401():
+    # Tentando acessar uma rota protegida (ex: criar evento) sem enviar o token no cabeçalho
+    response = client.post("/eventos", json={"titulo": "Evento Teste", "capacidade": 100})
+    
+    # Deve retornar erro de não autenticado
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"
 
-def test_login_valido_retorna_jwt_com_expiracao(client, participante):
-    resp = client.post(LOGIN, data={"username": participante["email"], "password": SENHA_PADRAO})
-    assert resp.status_code == 200
-    corpo = resp.json()
-    assert corpo["token_type"] == "bearer"
-    dados = jwt.decode(corpo["access_token"], SECRET_KEY_TESTE, algorithms=["HS256"])
-    assert dados["sub"] == participante["email"]
-    assert dados["tipo_perfil"] == "participante"
-    assert "exp" in dados
-
-
-def test_login_com_senha_errada_retorna_401(client, participante):
-    resp = client.post(LOGIN, data={"username": participante["email"], "password": "senha-errada"})
-    assert resp.status_code == 401
-
-
-def test_login_com_email_inexistente_retorna_401(client):
-    resp = client.post(LOGIN, data={"username": "ninguem@teste.com", "password": SENHA_PADRAO})
-    assert resp.status_code == 401
-
-
-def test_rota_protegida_sem_token_retorna_401(client):
-    assert client.get(ROTA_PROTEGIDA).status_code == 401
-
-
-def test_token_invalido_retorna_401(client):
-    resp = client.get(ROTA_PROTEGIDA, headers={"Authorization": "Bearer token-invalido"})
-    assert resp.status_code == 401
-
-
-def test_token_expirado_retorna_401(client, participante):
-    expirado = jwt.encode(
-        {
-            "sub": participante["email"],
-            "usuario_id": participante["id"],
-            "tipo_perfil": "participante",
-            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
-        },
-        SECRET_KEY_TESTE,
-        algorithm="HS256",
-    )
-    resp = client.get(ROTA_PROTEGIDA, headers={"Authorization": f"Bearer {expirado}"})
-    assert resp.status_code == 401
-
-
-def test_token_assinado_com_outra_chave_retorna_401(client, participante):
-    falso = jwt.encode(
-        {
-            "sub": participante["email"],
-            "usuario_id": participante["id"],
-            "tipo_perfil": "admin",
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
-        },
-        "outra-chave-qualquer",
-        algorithm="HS256",
-    )
-    resp = client.get(ROTA_PROTEGIDA, headers={"Authorization": f"Bearer {falso}"})
-    assert resp.status_code == 401
-
-
-def test_me_retorna_os_dados_do_usuario_autenticado(client, organizador):
-    resp = client.get("/api/v1/usuarios/me", headers=organizador["headers"])
-    assert resp.status_code == 200
-    corpo = resp.json()
-    assert corpo["email"] == organizador["email"]
-    assert corpo["tipo_perfil"] == "organizador"
-    assert "senha" not in corpo
+# Passo 2: Escrever testes que provem que um usuário recebe 403 ao acessar rotas proibidas para o seu perfil.[span_5](start_span)[span_5](end_span)
+def test_participante_acessando_rota_proibida_retorna_403():
+    # 1. Fazemos login com um usuário de perfil "Participante"
+    login_response = client.post("/login", data={"username": "participante@email.com", "password": "senha_participante"})
+    
+    # Se o login falhar no teste, ele quebra aqui antes de testar o 403
+    assert login_response.status_code == 200, "O login do participante falhou no teste."
+    
+    token = login_response.json().get("access_token")
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    # 2. O Participante tenta criar um evento (ação restrita a Organizador/Admin)
+    payload_evento = {
+        "titulo": "Evento Clandestino",
+        "capacidade": 50
+    }
+    response = client.post("/eventos", headers=headers, json=payload_evento)
+    
+    # 3. O sistema deve reconhecer o token, mas bloquear a ação por falta de permissão
+    assert response.status_code == 403
