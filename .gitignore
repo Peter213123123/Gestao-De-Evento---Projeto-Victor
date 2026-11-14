@@ -1,5 +1,4 @@
-
-# Chave do Firebase
+# Chaves e configurações do Firebase
 firebase.json
 *firebase-adminsdk*.json
 .env
@@ -7,6 +6,8 @@ firebase.json
 # Arquivos temporários do Python
 __pycache__/
 *.pyc
+.pytest_cache/
 
-# Ambiente virtual
+# Ambientes virtuais
 venv/
+.venv/

@@ -1,11 +1,17 @@
-from sqlalchemy import Column, Integer, String, Date
-from models.base import Base
+from datetime import date
 
-class Evento(Base):
-    __tablename__ = "eventos"
+class EventoModel:
+    def __init__(self, titulo: str, descricao: str, data_evento: date, capacidade: int):
+        self.titulo = titulo
+        self.descricao = descricao
+        self.data_evento = data_evento
+        self.capacidade = capacidade
 
-    id = Column(Integer, primary_key=True, index=True)
-    titulo = Column(String, index=True, nullable=False)
-    descricao = Column(String)
-    data_evento = Column(Date, nullable=False)
-    capacidade = Column(Integer, nullable=False)
+    def to_dict(self):
+        """Converte o objeto para dicionário (formato que o Firestore armazena)"""
+        return {
+            "titulo": self.titulo,
+            "descricao": self.descricao,
+            "data_evento": self.data_evento.isoformat(), 
+            "capacidade": self.capacidade
+        }
