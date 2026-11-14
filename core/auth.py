@@ -1,7 +1,6 @@
 from fastapi import HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 import jwt
-
 from core.config import settings
 
 # Instancia o OAuth2PasswordBearer para habilitar o botão "Authorize" no Swagger
@@ -46,4 +45,3 @@ def verificar_admin(usuario: dict = Depends(get_current_user)):
     if str(usuario.get("tipo_perfil", "")).lower() != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado. Apenas Administradores.")
     return usuario
-
