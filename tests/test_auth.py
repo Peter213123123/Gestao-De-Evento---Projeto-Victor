@@ -1,50 +1,110 @@
-from fastapi.testclient import TestClient
-from main import app  # Certifique-se de que o objeto principal do FastAPI se chama 'app' no seu main.py
+"""Autenticação: login, JWT, 401 (sem token / inválido / expirado), 403 e /usuarios/me.
 
-client = TestClient(app)
+Usa as fixtures do tests/conftest.py: o app roda com um Firestore falso em memória,
+então os usuários de teste são criados por `criar_usuario` (e não vêm de um banco real).
+"""
+from datetime import datetime, timedelta, timezone
 
-# Passo 1: Escrever testes automatizados cobrindo fluxos de login bem-sucedidos e com falhas.[span_3](start_span)[span_3](end_span)
-def test_login_sucesso():
-    # Simulando um login de sucesso (Ajuste a rota e os dados para bater com o seu BD)
-    response = client.post("/login", data={"username": "admin@email.com", "password": "senha_admin"})
-    
+import jwt
+
+from tests.conftest import SECRET_KEY_TESTE, SENHA_PADRAO
+
+LOGIN = "/api/v1/usuarios/login"
+EVENTOS = "/api/v1/eventos/"
+EVENTO = {"titulo": "Evento Teste", "descricao": "x", "data_evento": "2030-01-01", "capacidade": 100}
+
+
+def test_login_sucesso(client, admin):
+    response = client.post(LOGIN, data={"username": admin["email"], "password": SENHA_PADRAO})
+
     assert response.status_code == 200
     assert "access_token" in response.json()
-    assert response.json()["token_type"] == "bearer"
 
-def test_login_falha_senha_incorreta():
-    # Simulando um login com falha
-    response = client.post("/login", data={"username": "admin@email.com", "password": "senha_errada"})
-    
+
+def test_login_falha_senha_incorreta(client, admin):
+    response = client.post(LOGIN, data={"username": admin["email"], "password": "senha_errada"})
+
     # O sistema deve rejeitar retornando 401
     assert response.status_code == 401
 
-# Passo 3: Escrever testes verificando o retorno 401 em chamadas sem token.[span_4](start_span)[span_4](end_span)
-def test_acesso_sem_token_retorna_401():
-    # Tentando acessar uma rota protegida (ex: criar evento) sem enviar o token no cabeçalho
-    response = client.post("/eventos", json={"titulo": "Evento Teste", "capacidade": 100})
-    
+
+def test_acesso_sem_token_retorna_401(client):
+    # Tentando acessar uma rota protegida (criar evento) sem enviar o token no cabeçalho
+    response = client.post(EVENTOS, json=EVENTO)
+
     # Deve retornar erro de não autenticado
     assert response.status_code == 401
-    assert response.json()["detail"] == "Not authenticated"
 
-# Passo 2: Escrever testes que provem que um usuário recebe 403 ao acessar rotas proibidas para o seu perfil.[span_5](start_span)[span_5](end_span)
-def test_participante_acessando_rota_proibida_retorna_403():
-    # 1. Fazemos login com um usuário de perfil "Participante"
-    login_response = client.post("/login", data={"username": "participante@email.com", "password": "senha_participante"})
-    
-    # Se o login falhar no teste, ele quebra aqui antes de testar o 403
+
+def test_participante_acessando_rota_proibida_retorna_403(client, participante):
+    # 1. Login real, pela API, com um usuário de perfil "participante"
+    login_response = client.post(LOGIN, data={"username": participante["email"], "password": SENHA_PADRAO})
     assert login_response.status_code == 200, "O login do participante falhou no teste."
-    
-    token = login_response.json().get("access_token")
-    headers = {"Authorization": f"Bearer {token}"}
-    
-    # 2. O Participante tenta criar um evento (ação restrita a Organizador/Admin)
-    payload_evento = {
-        "titulo": "Evento Clandestino",
-        "capacidade": 50
-    }
-    response = client.post("/eventos", headers=headers, json=payload_evento)
-    
-    # 3. O sistema deve reconhecer o token, mas bloquear a ação por falta de permissão
+    token = login_response.json()["access_token"]
+
+    # 2. Com o token válido, tenta uma rota que só admin e organizador podem usar
+    response = client.post(EVENTOS, json=EVENTO, headers={"Authorization": f"Bearer {token}"})
+
+    # Autenticado, mas sem permissão: 403 (e não 401)
     assert response.status_code == 403
+
+
+def test_login_retorna_jwt_com_expiracao(client, participante):
+    resp = client.post(LOGIN, data={"username": participante["email"], "password": SENHA_PADRAO})
+    corpo = resp.json()
+
+    assert corpo["token_type"] == "bearer"
+    dados = jwt.decode(corpo["access_token"], SECRET_KEY_TESTE, algorithms=["HS256"])
+    assert dados["sub"] == participante["email"]
+    assert dados["tipo_perfil"] == "participante"
+    assert "exp" in dados
+
+
+def test_login_com_email_inexistente_retorna_401(client):
+    resp = client.post(LOGIN, data={"username": "ninguem@teste.com", "password": SENHA_PADRAO})
+    assert resp.status_code == 401
+
+
+def test_token_invalido_retorna_401(client):
+    resp = client.get(EVENTOS, headers={"Authorization": "Bearer token-invalido"})
+    assert resp.status_code == 401
+
+
+def test_token_expirado_retorna_401(client, participante):
+    expirado = jwt.encode(
+        {
+            "sub": participante["email"],
+            "usuario_id": participante["id"],
+            "tipo_perfil": "participante",
+            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+        },
+        SECRET_KEY_TESTE,
+        algorithm="HS256",
+    )
+    resp = client.get(EVENTOS, headers={"Authorization": f"Bearer {expirado}"})
+    assert resp.status_code == 401
+
+
+def test_token_assinado_com_outra_chave_retorna_401(client, participante):
+    falso = jwt.encode(
+        {
+            "sub": participante["email"],
+            "usuario_id": participante["id"],
+            "tipo_perfil": "admin",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
+        },
+        "outra-chave-qualquer-com-mais-de-32-caracteres",
+        algorithm="HS256",
+    )
+    resp = client.get(EVENTOS, headers={"Authorization": f"Bearer {falso}"})
+    assert resp.status_code == 401
+
+
+def test_me_retorna_os_dados_do_usuario_autenticado(client, organizador):
+    resp = client.get("/api/v1/usuarios/me", headers=organizador["headers"])
+
+    assert resp.status_code == 200
+    corpo = resp.json()
+    assert corpo["email"] == organizador["email"]
+    assert corpo["tipo_perfil"] == "organizador"
+    assert "senha" not in corpo

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from schemas.usuario_schema import UsuarioCriar, UsuarioLogin, UsuarioResponse
+from schemas.usuario_schema import UsuarioCriar, UsuarioLogin, UsuarioPerfilUpdate, UsuarioResponse
 from core.database import db
 from core.security import get_password_hash, verify_password, create_access_token
-from core.auth import get_current_user, verificar_admin
+from core.auth import get_current_user
+from core.permissoes import ADMIN, PARTICIPANTE, permissao
 
 router = APIRouter()
 
@@ -19,14 +20,14 @@ def criar_usuario(usuario: UsuarioCriar):
         "nome": usuario.nome,
         "email": usuario.email,
         "senha": senha_criptografada,
-        "tipo_perfil": usuario.tipo_perfil
+        "tipo_perfil": PARTICIPANTE  # cadastro público nunca cria admin/organizador
     }
     novo_doc = db.collection("usuarios").add(dados_usuario)
     return {
         "id": novo_doc[1].id,
         "nome": usuario.nome,
         "email": usuario.email,
-        "tipo_perfil": usuario.tipo_perfil
+        "tipo_perfil": PARTICIPANTE
     }
 
 @router.get("/me", response_model=UsuarioResponse)
@@ -58,7 +59,7 @@ def obter_meu_perfil(current_user: dict = Depends(get_current_user)):
     }
 
 @router.get("/", response_model=list[UsuarioResponse])
-def listar_usuarios():
+def listar_usuarios(current_user: dict = Depends(permissao("gerenciar_usuarios"))):
     docs = db.collection("usuarios").stream()
     lista = []
     for doc in docs:
@@ -68,12 +69,36 @@ def listar_usuarios():
     return lista
 
 @router.delete("/{usuario_id}")
-def excluir_usuario(usuario_id: str, current_user: dict = Depends(verificar_admin)):
+def excluir_usuario(usuario_id: str, current_user: dict = Depends(permissao("gerenciar_usuarios"))):
     doc_ref = db.collection("usuarios").document(usuario_id)
     if not doc_ref.get().exists:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     doc_ref.delete()
     return {"mensagem": "Usuário excluído com sucesso!"}
+
+@router.patch("/{usuario_id}/perfil", response_model=UsuarioResponse)
+def alterar_perfil(
+    usuario_id: str,
+    dados: UsuarioPerfilUpdate,
+    current_user: dict = Depends(permissao("gerenciar_usuarios")),
+):
+    """Somente Admin: promove ou rebaixa o perfil de um usuário (ex.: criar organizadores)."""
+    if usuario_id == current_user.get("usuario_id") and dados.tipo_perfil != ADMIN:
+        raise HTTPException(status_code=400, detail="Você não pode remover o seu próprio perfil de admin.")
+
+    doc_ref = db.collection("usuarios").document(usuario_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    doc_ref.update({"tipo_perfil": dados.tipo_perfil})
+    atual = doc.to_dict()
+    return {
+        "id": doc.id,
+        "nome": atual.get("nome", ""),
+        "email": atual.get("email", ""),
+        "tipo_perfil": dados.tipo_perfil,
+    }
 
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):

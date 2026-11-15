@@ -2,17 +2,29 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from core.auth import get_current_user
 from core.database import db
+from core.permissoes import exigir_permissao, permissao
 from schemas.inscricao_schema import InscricaoCreate, InscricaoUpdate, InscricaoResponse
 
 router = APIRouter()
 
+
+def _exigir_dono(inscricao: dict, usuario: dict):
+    """Participante só mexe nas próprias inscrições (403 se for de outra pessoa)."""
+    if inscricao.get("id_usuario") != usuario.get("usuario_id"):
+        raise HTTPException(status_code=403, detail="Você só pode alterar as suas próprias inscrições.")
+
+
 @router.get("/", response_model=list[InscricaoResponse])
-def listar_inscricoes(usuario: dict = Depends(get_current_user)):
+def listar_inscricoes(usuario: dict = Depends(permissao("listar_inscritos"))):
     docs = db.collection("inscricoes").stream()
     return [{"id": doc.id, **doc.to_dict()} for doc in docs]
 
 @router.post("/", response_model=InscricaoResponse, status_code=status.HTTP_201_CREATED)
-def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(get_current_user)):
+def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(permissao("inscrever_se"))):
+    # O participante só se inscreve em seu próprio nome (o id vem do token, não do corpo)
+    if inscricao.id_usuario != usuario.get("usuario_id"):
+        raise HTTPException(status_code=403, detail="Você só pode realizar inscrições em seu próprio nome.")
+
     # 1. Verifica se o evento existe no Firestore
     evento_doc = db.collection("eventos").document(inscricao.id_evento).get()
     if not evento_doc.exists:
@@ -50,19 +62,36 @@ def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(get_curr
 
 @router.put("/{inscricao_id}", response_model=InscricaoResponse)
 def atualizar_inscricao(inscricao_id: str, dados_atualizacao: InscricaoUpdate, usuario: dict = Depends(get_current_user)):
+    novo_status = dados_atualizacao.status
+
+    # 1. Perfil: quem pode fazer cada tipo de alteração
+    if novo_status == "cancelada":
+        exigir_permissao(usuario, "cancelar_inscricao_propria")  # participante
+    elif novo_status == "presente":
+        exigir_permissao(usuario, "registrar_presenca")  # admin/organizador (check-in)
+    else:
+        raise HTTPException(status_code=400, detail="Status inválido. Use 'cancelada' ou 'presente'.")
+
+    # 2. Existência
     doc_ref = db.collection("inscricoes").document(inscricao_id)
     doc = doc_ref.get()
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Inscrição não encontrada")
 
-    doc_ref.update({"status": dados_atualizacao.status})
+    # 3. Dono: cancelar só a própria inscrição
+    if novo_status == "cancelada":
+        _exigir_dono(doc.to_dict(), usuario)
+
+    doc_ref.update({"status": novo_status})
     dados_atualizados = doc_ref.get().to_dict()
     return {"id": inscricao_id, **dados_atualizados}
 
 @router.delete("/{inscricao_id}")
-def excluir_inscricao(inscricao_id: str, usuario: dict = Depends(get_current_user)):
+def excluir_inscricao(inscricao_id: str, usuario: dict = Depends(permissao("cancelar_inscricao_propria"))):
     doc_ref = db.collection("inscricoes").document(inscricao_id)
-    if not doc_ref.get().exists:
+    doc = doc_ref.get()
+    if not doc.exists:
         raise HTTPException(status_code=404, detail="Inscrição não encontrada")
+    _exigir_dono(doc.to_dict(), usuario)
     doc_ref.delete()
     return {"mensagem": "Inscrição excluída com sucesso!"}
