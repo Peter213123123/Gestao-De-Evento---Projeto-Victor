@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Gestão de Eventos Acadêmicos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 min-h-screen flex items-center justify-center p-4 font-sans text-slate-100">
+
+  <div class="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8 relative overflow-hidden">
+    
+    <!-- Efeito de brilho decorativo no topo -->
+    <div class="absolute -top-16 -left-16 w-36 h-36 bg-indigo-500/30 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-16 -right-16 w-36 h-36 bg-purple-500/30 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Header do Card -->
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-400 mb-3 shadow-inner">
+        <i class="fa-solid fa-graduation-cap text-3xl"></i>
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight text-white">Gestão de Eventos</h1>
+      <p class="text-sm text-slate-300 mt-1">Plataforma Acadêmica Integrada</p>
+    </div>
+
+    <!-- Abas / Tabs (Entrar x Cadastrar) -->
+    <div class="flex p-1 bg-slate-800/80 rounded-xl mb-6 border border-white/10">
+      <button id="tab-login-btn" onclick="switchTab('login')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white shadow">
+        Entrar
+      </button>
+      <button id="tab-register-btn" onclick="switchTab('register')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white">
+        Criar Conta
+      </button>
+    </div>
+
+    <!-- Mensagens de Alerta (Sucesso ou Erro) -->
+    <div id="alert-box" class="hidden mb-4 p-3 rounded-lg text-sm border flex items-center gap-2"></div>
+
+    <!-- ==================== FORMULÁRIO DE LOGIN ==================== -->
+    <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="login-email">E-mail</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-regular fa-envelope"></i>
+          </div>
+          <input 
+            type="email" 
+            id="login-email" 
+            required 
+            placeholder="seu.email@exemplo.com"
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="login-password">Senha</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <input 
+            type="password" 
+            id="login-password" 
+            required 
+            placeholder="••••••••"
+            class="w-full pl-10 pr-10 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+          <button 
+            type="button" 
+            onclick="togglePasswordVisibility('login-password', 'toggle-login-eye')" 
+            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white"
+          >
+            <i id="toggle-login-eye" class="fa-regular fa-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between text-xs text-slate-300">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input type="checkbox" id="remember-me" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-indigo-500">
+          <span>Lembrar meu e-mail</span>
+        </label>
+        <a href="/docs" target="_blank" class="text-indigo-400 hover:text-indigo-300 hover:underline">Documentação API</a>
+      </div>
+
+      <button 
+        type="submit" 
+        id="login-submit-btn"
+        class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-semibold rounded-lg shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2"
+      >
+        <span id="login-spinner" class="hidden">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+        </span>
+        <span id="login-btn-text">Acessar Sistema</span>
+      </button>
+    </form>
+
+    <!-- ==================== FORMULÁRIO DE CADASTRO ==================== -->
+    <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="reg-nome">Nome Completo</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-regular fa-user"></i>
+          </div>
+          <input 
+            type="text" 
+            id="reg-nome" 
+            required 
+            placeholder="Victor Henrique"
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="reg-email">E-mail</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-regular fa-envelope"></i>
+          </div>
+          <input 
+            type="email" 
+            id="reg-email" 
+            required 
+            placeholder="seu.email@exemplo.com"
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="reg-password">Senha</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <input 
+            type="password" 
+            id="reg-password" 
+            required 
+            placeholder="Mínimo 6 caracteres"
+            class="w-full pl-10 pr-10 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+          <button 
+            type="button" 
+            onclick="togglePasswordVisibility('reg-password', 'toggle-reg-eye')" 
+            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white"
+          >
+            <i id="toggle-reg-eye" class="fa-regular fa-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="reg-perfil">Tipo de Perfil</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-solid fa-id-badge"></i>
+          </div>
+          <select 
+            id="reg-perfil" 
+            required
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700/80 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+            <option value="participante" class="bg-slate-900 text-white">Participante</option>
+            <option value="organizador" class="bg-slate-900 text-white">Organizador</option>
+            <option value="admin" class="bg-slate-900 text-white">Administrador</option>
+          </select>
+        </div>
+      </div>
+
+      <button 
+        type="submit" 
+        id="reg-submit-btn"
+        class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-semibold rounded-lg shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+      >
+        <span id="reg-spinner" class="hidden">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+        </span>
+        <span id="reg-btn-text">Cadastrar e Continuar</span>
+      </button>
+    </form>
+
+    <!-- Rodapé -->
+    <div class="mt-8 text-center text-xs text-slate-400">
+      <p>Gestão de Eventos Acadêmicos &bull; FastAPI + Firestore</p>
+    </div>
+
+  </div>
+
+  <script>
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedEmail = localStorage.getItem('saved_email');
+      if (savedEmail) {
+        document.getElementById('login-email').value = savedEmail;
+        document.getElementById('remember-me').checked = true;
+      }
+
+      // Se já tiver um token válido, pode redirecionar para o dashboard
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        validarSessaoExistente(token);
+      }
+    });
+
+    async function validarSessaoExistente(token) {
+      try {
+        const resp = await fetch('/api/v1/usuarios/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resp.ok) {
+          // Token ainda válido! Redireciona
+          window.location.href = '/dashboard';
+        } else {
+          // Token expirou ou inválido, limpa
+          localStorage.removeItem('access_token');
+        }
+      } catch (e) {
+        // Ignora erro de rede em validação de fundo
+      }
+    }
+
+    // Alternar entre abas Entrar e Cadastrar
+    function switchTab(tab) {
+      clearAlert();
+      const tabLoginBtn = document.getElementById('tab-login-btn');
+      const tabRegBtn = document.getElementById('tab-register-btn');
+      const formLogin = document.getElementById('form-login');
+      const formRegister = document.getElementById('form-register');
+
+      if (tab === 'login') {
+        tabLoginBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white shadow';
+        tabRegBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white';
+        formLogin.classList.remove('hidden');
+        formRegister.classList.add('hidden');
+      } else {
+        tabRegBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white shadow';
+        tabLoginBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white';
+        formRegister.classList.remove('hidden');
+        formLogin.classList.add('hidden');
+      }
+    }
+
+    // Alternar visualização da senha
+    function togglePasswordVisibility(inputId, eyeIconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(eyeIconId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+
+    // Exibir mensagens de alerta
+    function showAlert(message, type = 'error') {
+      const box = document.getElementById('alert-box');
+      box.classList.remove('hidden', 'bg-red-500/20', 'border-red-500/40', 'text-red-200', 'bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-200');
+      
+      if (type === 'error') {
+        box.classList.add('bg-red-500/20', 'border-red-500/40', 'text-red-200');
+        box.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> <span>${message}</span>`;
+      } else {
+        box.classList.add('bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-200');
+        box.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>${message}</span>`;
+      }
+    }
+
+    function clearAlert() {
+      const box = document.getElementById('alert-box');
+      box.classList.add('hidden');
+      box.innerHTML = '';
+    }
+
+    // Processar Login
+    async function handleLogin(e) {
+      e.preventDefault();
+      clearAlert();
+
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const rememberMe = document.getElementById('remember-me').checked;
+
+      const submitBtn = document.getElementById('login-submit-btn');
+      const spinner = document.getElementById('login-spinner');
+      const btnText = document.getElementById('login-btn-text');
+
+      if (rememberMe) {
+        localStorage.setItem('saved_email', email);
+      } else {
+        localStorage.removeItem('saved_email');
+      }
+
+      // Ativar spinner
+      submitBtn.disabled = true;
+      spinner.classList.remove('hidden');
+      btnText.textContent = 'Autenticando...';
+
+      try {
+        // FastAPI OAuth2PasswordRequestForm espera application/x-www-form-urlencoded
+        const formData = new URLSearchParams();
+        formData.append('username', email);
+        formData.append('password', password);
+
+        const response = await fetch('/api/v1/usuarios/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: formData.toString()
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || 'Falha ao autenticar. Verifique suas credenciais.');
+        }
+
+        // Salvar token no localStorage
+        localStorage.setItem('access_token', data.access_token);
+
+        showAlert('Login realizado com sucesso! Redirecionando...', 'success');
+
+        // Buscar dados do usuário logado
+        try {
+          const userResp = await fetch('/api/v1/usuarios/me', {
+            headers: { 'Authorization': `Bearer ${data.access_token}` }
+          });
+          if (userResp.ok) {
+            const userData = await userResp.json();
+            localStorage.setItem('user_info', JSON.stringify(userData));
+          }
+        } catch (err) {
+          console.warn('Erro ao carregar dados do usuário:', err);
+        }
+
+        // Redireciona para o dashboard
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 800);
+
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        spinner.classList.add('hidden');
+        btnText.textContent = 'Acessar Sistema';
+      }
+    }
+
+    // Processar Cadastro
+    async function handleRegister(e) {
+      e.preventDefault();
+      clearAlert();
+
+      const nome = document.getElementById('reg-nome').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const senha = document.getElementById('reg-password').value;
+      const tipo_perfil = document.getElementById('reg-perfil').value;
+
+      const submitBtn = document.getElementById('reg-submit-btn');
+      const spinner = document.getElementById('reg-spinner');
+      const btnText = document.getElementById('reg-btn-text');
+
+      if (senha.length < 6) {
+        showAlert('A senha deve possuir pelo menos 6 caracteres.', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      spinner.classList.remove('hidden');
+      btnText.textContent = 'Cadastrando...';
+
+      try {
+        const response = await fetch('/api/v1/usuarios/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            nome,
+            email,
+            senha,
+            tipo_perfil
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || 'Falha ao criar conta.');
+        }
+
+        // Sucesso no cadastro
+        switchTab('login');
+        document.getElementById('login-email').value = email;
+        document.getElementById('login-password').value = '';
+        showAlert('Conta criada com sucesso! Digite sua senha para entrar.', 'success');
+
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        spinner.classList.add('hidden');
+        btnText.textContent = 'Cadastrar e Continuar';
+      }
+    }
+  </script>
+</body>
+</html>
