@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Gestão - Eventos Acadêmicos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-900 min-h-screen text-slate-100 font-sans flex flex-col">
+
+  <!-- ==================== NAVBAR ==================== -->
+  <nav class="bg-slate-800/90 backdrop-blur-md border-b border-slate-700/80 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shadow-inner">
+          <i class="fa-solid fa-graduation-cap text-lg"></i>
+        </div>
+        <div>
+          <span class="font-bold text-base sm:text-lg text-white">Gestão de Eventos</span>
+          <span class="hidden sm:inline-block ml-2 text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">Acadêmico</span>
+        </div>
+      </div>
+
+      <!-- Usuário e Ações -->
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        <div class="hidden sm:flex flex-col text-right">
+          <span id="user-display-name" class="text-sm font-semibold text-white">Carregando...</span>
+          <span id="user-display-email" class="text-xs text-slate-400">...</span>
+        </div>
+        <span id="user-role-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider bg-slate-700 text-slate-300">
+          ...
+        </span>
+        <a href="/docs" target="_blank" title="Swagger API Docs" class="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-700 border border-slate-600 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-code text-indigo-400"></i>
+          <span class="hidden sm:inline">Swagger</span>
+        </a>
+        <button onclick="handleLogout()" class="text-xs text-rose-300 hover:text-rose-200 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span class="hidden sm:inline">Sair</span>
+        </button>
+      </div>
+
+    </div>
+  </nav>
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm pointer-events-none"></div>
+
+  <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- Abas Principais (Navegação dos Módulos) -->
+    <div class="flex border-b border-slate-700/80 space-x-1 sm:space-x-2 overflow-x-auto pb-1">
+      <button onclick="changeTab('eventos')" id="tab-nav-eventos" class="tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-indigo-500 text-indigo-400 bg-slate-800/60 transition">
+        <i class="fa-regular fa-calendar"></i>
+        <span>Eventos</span>
+        <span id="count-badge-eventos" class="ml-1 text-xs px-2 py-0.2 rounded-full bg-slate-700 text-slate-300">0</span>
+      </button>
+
+      <button onclick="changeTab('inscricoes')" id="tab-nav-inscricoes" class="tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40 transition">
+        <i class="fa-solid fa-ticket"></i>
+        <span>Inscrições</span>
+        <span id="count-badge-inscricoes" class="ml-1 text-xs px-2 py-0.2 rounded-full bg-slate-700 text-slate-300">0</span>
+      </button>
+
+      <button onclick="changeTab('certificados')" id="tab-nav-certificados" class="tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40 transition">
+        <i class="fa-solid fa-award"></i>
+        <span>Certificados</span>
+        <span id="count-badge-certificados" class="ml-1 text-xs px-2 py-0.2 rounded-full bg-slate-700 text-slate-300">0</span>
+      </button>
+
+      <button onclick="changeTab('usuarios')" id="tab-nav-usuarios" class="tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40 transition">
+        <i class="fa-solid fa-users"></i>
+        <span>Usuários</span>
+        <span id="count-badge-usuarios" class="ml-1 text-xs px-2 py-0.2 rounded-full bg-slate-700 text-slate-300">0</span>
+      </button>
+    </div>
+
+    <!-- ==================== SEÇÃO: EVENTOS ==================== -->
+    <section id="section-eventos" class="tab-section space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-regular fa-calendar text-indigo-400"></i> Gestão de Eventos
+          </h2>
+          <p class="text-xs text-slate-400">Cadastre, edite, exclua e visualize os eventos acadêmicos.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="carregarEventos()" title="Recarregar" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+          <button id="btn-novo-evento" onclick="abrirModalEvento()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i>
+            <span>Novo Evento</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtro de busca -->
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+        <input 
+          type="text" 
+          id="search-eventos" 
+          oninput="filtrarEventos()" 
+          placeholder="Buscar evento por título ou descrição..."
+          class="w-full pl-10 pr-4 py-2 bg-slate-800/70 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+      </div>
+
+      <!-- Estado de Carregamento / Vazio -->
+      <div id="eventos-loading" class="text-center py-12 text-slate-400">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500 mb-2"></i>
+        <p class="text-sm">Carregando eventos...</p>
+      </div>
+
+      <div id="eventos-empty" class="hidden text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700/50">
+        <i class="fa-regular fa-calendar-xmark text-4xl text-slate-500 mb-2"></i>
+        <p class="text-sm font-medium text-slate-300">Nenhum evento encontrado.</p>
+      </div>
+
+      <!-- Grid de Eventos -->
+      <div id="eventos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden"></div>
+    </section>
+
+    <!-- ==================== SEÇÃO: INSCRIÇÕES ==================== -->
+    <section id="section-inscricoes" class="tab-section space-y-4 hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-ticket text-purple-400"></i> Gestão de Inscrições
+          </h2>
+          <p class="text-xs text-slate-400">Inscreva participantes em eventos e gerencie confirmações e presenças.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="carregarInscricoes()" title="Recarregar" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+          <button onclick="abrirModalInscricao()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-semibold shadow-lg shadow-purple-600/30 transition flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i>
+            <span>Nova Inscrição</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela de Inscrições -->
+      <div id="inscricoes-loading" class="text-center py-12 text-slate-400">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-2"></i>
+        <p class="text-sm">Carregando inscrições...</p>
+      </div>
+
+      <div id="inscricoes-empty" class="hidden text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700/50">
+        <i class="fa-solid fa-ticket text-4xl text-slate-500 mb-2"></i>
+        <p class="text-sm font-medium text-slate-300">Nenhuma inscrição encontrada.</p>
+      </div>
+
+      <div id="inscricoes-table-wrapper" class="overflow-x-auto rounded-xl border border-slate-700/80 bg-slate-800/50 hidden">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-800 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-700">
+            <tr>
+              <th class="p-4">ID</th>
+              <th class="p-4">Participante</th>
+              <th class="p-4">Evento</th>
+              <th class="p-4">Status</th>
+              <th class="p-4">Data Inscrição</th>
+              <th class="p-4 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="inscricoes-table-body" class="divide-y divide-slate-700/60"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== SEÇÃO: CERTIFICADOS ==================== -->
+    <section id="section-certificados" class="tab-section space-y-4 hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-award text-emerald-400"></i> Gestão de Certificados
+          </h2>
+          <p class="text-xs text-slate-400">Emissão e consulta de certificados com código de validação único.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="carregarCertificados()" title="Recarregar" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+          <button id="btn-novo-certificado" onclick="abrirModalCertificado()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i>
+            <span>Emitir Certificado</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela de Certificados -->
+      <div id="certificados-loading" class="text-center py-12 text-slate-400">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-500 mb-2"></i>
+        <p class="text-sm">Carregando certificados...</p>
+      </div>
+
+      <div id="certificados-empty" class="hidden text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700/50">
+        <i class="fa-solid fa-award text-4xl text-slate-500 mb-2"></i>
+        <p class="text-sm font-medium text-slate-300">Nenhum certificado emitido no momento.</p>
+      </div>
+
+      <div id="certificados-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden"></div>
+    </section>
+
+    <!-- ==================== SEÇÃO: USUÁRIOS ==================== -->
+    <section id="section-usuarios" class="tab-section space-y-4 hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-users text-sky-400"></i> Gestão de Usuários
+          </h2>
+          <p class="text-xs text-slate-400">Visualização de contas cadastradas e criação de novos usuários.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="carregarUsuarios()" title="Recarregar" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+          <button onclick="abrirModalUsuario()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-semibold shadow-lg shadow-sky-600/30 transition flex items-center gap-2">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Novo Usuário</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela de Usuários -->
+      <div id="usuarios-loading" class="text-center py-12 text-slate-400">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-sky-500 mb-2"></i>
+        <p class="text-sm">Carregando usuários...</p>
+      </div>
+
+      <div id="usuarios-table-wrapper" class="overflow-x-auto rounded-xl border border-slate-700/80 bg-slate-800/50 hidden">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-800 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-700">
+            <tr>
+              <th class="p-4">ID</th>
+              <th class="p-4">Nome</th>
+              <th class="p-4">E-mail</th>
+              <th class="p-4">Perfil</th>
+              <th class="p-4 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="usuarios-table-body" class="divide-y divide-slate-700/60"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL: EVENTO (CRIAR / EDITAR) ==================== -->
+  <div id="modal-evento" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+        <h3 id="modal-evento-titulo" class="text-lg font-bold text-white">Novo Evento</h3>
+        <button onclick="fecharModal('modal-evento')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-evento" onsubmit="salvarEvento(event)" class="space-y-4">
+        <input type="hidden" id="evento-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="evento-titulo">Título do Evento *</label>
+          <input type="text" id="evento-titulo" required placeholder="Ex: Semana de Tecnologia 2026" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="evento-descricao">Descrição</label>
+          <textarea id="evento-descricao" rows="3" placeholder="Informações detalhadas sobre o evento..." class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="evento-data">Data do Evento *</label>
+            <input type="date" id="evento-data" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="evento-capacidade">Capacidade (Vagas) *</label>
+            <input type="number" id="evento-capacidade" min="1" required placeholder="Ex: 100" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div id="container-evento-status" class="hidden">
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="evento-status">Status</label>
+          <select id="evento-status" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="ativo">Ativo</option>
+            <option value="encerrado">Encerrado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
+          <button type="button" onclick="fecharModal('modal-evento')" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition">Cancelar</button>
+          <button type="submit" id="btn-submit-evento" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center gap-2">
+            <span>Salvar Evento</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: INSCRIÇÃO ==================== -->
+  <div id="modal-inscricao" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+        <h3 class="text-lg font-bold text-white">Realizar Inscrição</h3>
+        <button onclick="fecharModal('modal-inscricao')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-inscricao" onsubmit="salvarInscricao(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="inscricao-usuario">Participante / Usuário *</label>
+          <select id="inscricao-usuario" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="inscricao-evento">Evento *</label>
+          <select id="inscricao-evento" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"></select>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
+          <button type="button" onclick="fecharModal('modal-inscricao')" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-600/30 transition flex items-center gap-2">
+            <span>Confirmar Inscrição</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: STATUS DA INSCRIÇÃO ==================== -->
+  <div id="modal-status-inscricao" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+        <h3 class="text-base font-bold text-white">Alterar Status da Inscrição</h3>
+        <button onclick="fecharModal('modal-status-inscricao')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-status-inscricao" onsubmit="atualizarStatusInscricao(event)" class="space-y-4">
+        <input type="hidden" id="status-inscricao-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="select-novo-status">Novo Status</label>
+          <select id="select-novo-status" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
+            <option value="confirmada">Confirmada</option>
+            <option value="presente">Presente</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-700">
+          <button type="button" onclick="fecharModal('modal-status-inscricao')" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-medium transition">Cancelar</button>
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition">Atualizar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CERTIFICADO ==================== -->
+  <div id="modal-certificado" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+        <h3 class="text-lg font-bold text-white">Emitir Certificado</h3>
+        <button onclick="fecharModal('modal-certificado')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-certificado" onsubmit="salvarCertificado(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="cert-usuario">Participante / Aluno *</label>
+          <select id="cert-usuario" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="cert-evento">Evento Concluído *</label>
+          <select id="cert-evento" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="cert-horas">Carga Horária (em horas) *</label>
+          <input type="number" id="cert-horas" min="1" required placeholder="Ex: 20" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
+          <button type="button" onclick="fecharModal('modal-certificado')" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+            <span>Gerar Certificado</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: NOVO USUÁRIO ==================== -->
+  <div id="modal-usuario" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+        <h3 class="text-lg font-bold text-white">Criar Novo Usuário</h3>
+        <button onclick="fecharModal('modal-usuario')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-usuario" onsubmit="salvarUsuario(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="user-nome">Nome Completo *</label>
+          <input type="text" id="user-nome" required placeholder="Nome do Usuário" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="user-email">E-mail *</label>
+          <input type="email" id="user-email" required placeholder="email@exemplo.com" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="user-senha">Senha Provisória *</label>
+          <input type="password" id="user-senha" required placeholder="Mínimo 6 caracteres" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" for="user-perfil">Tipo de Perfil *</label>
+          <select id="user-perfil" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            <option value="participante">Participante</option>
+            <option value="organizador">Organizador</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
+          <button type="button" onclick="fecharModal('modal-usuario')" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold shadow-lg shadow-sky-600/30 transition flex items-center gap-2">
+            <span>Criar Conta</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <footer class="border-t border-slate-800 py-4 text-center text-xs text-slate-500 mt-auto">
+    Gestão de Eventos Acadêmicos &bull; Sistema Integrado com FastAPI e Firestore
+  </footer>
+
+  <!-- ==================== JAVASCRIPT PRINCIPAL ==================== -->
+  <script>
+    // Validação de autenticação
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      window.location.href = '/login';
+    }
+
+    // Estado da aplicação
+    let currentUser = null;
+    let cacheEventos = [];
+    let cacheUsuarios = [];
+    let cacheInscricoes = [];
+    let cacheCertificados = [];
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', async () => {
+      await carregarPerfil();
+      // Carrega dados iniciais
+      await Promise.all([
+        carregarEventos(),
+        carregarUsuarios(),
+        carregarInscricoes(),
+        carregarCertificados()
+      ]);
+    });
+
+    // ----------------------------------------------------
+    // NOTIFICAÇÕES (TOAST)
+    // ----------------------------------------------------
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const isSuccess = type === 'success';
+      const bgColor = isSuccess ? 'bg-emerald-600/90 border-emerald-500/50' : 'bg-rose-600/90 border-rose-500/50';
+      const icon = isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation';
+
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border text-white shadow-xl backdrop-blur-md text-sm transition-all duration-300 transform translate-y-2 opacity-0 ${bgColor}`;
+      toast.innerHTML = `
+        <i class="fa-solid ${icon} text-base"></i>
+        <span>${message}</span>
+      `;
+
+      container.appendChild(toast);
+
+      // Animar entrada
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      // Auto-remover
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // ----------------------------------------------------
+    // NAVEGAÇÃO DE ABAS
+    // ----------------------------------------------------
+    function changeTab(tabName) {
+      const tabs = ['eventos', 'inscricoes', 'certificados', 'usuarios'];
+      tabs.forEach(t => {
+        const navBtn = document.getElementById(`tab-nav-${t}`);
+        const section = document.getElementById(`section-${t}`);
+        if (t === tabName) {
+          navBtn.className = 'tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-indigo-500 text-indigo-400 bg-slate-800/60 transition';
+          section.classList.remove('hidden');
+        } else {
+          navBtn.className = 'tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40 transition';
+          section.classList.add('hidden');
+        }
+      });
+    }
+
+    // ----------------------------------------------------
+    // MODAIS
+    // ----------------------------------------------------
+    function abrirModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function fecharModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // ----------------------------------------------------
+    // PERFIL DO USUÁRIO
+    // ----------------------------------------------------
+    async function carregarPerfil() {
+      try {
+        const resp = await fetch('/api/v1/usuarios/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!resp.ok) throw new Error('Sessão expirada');
+
+        currentUser = await resp.json();
+        document.getElementById('user-display-name').textContent = currentUser.nome || 'Usuário';
+        document.getElementById('user-display-email').textContent = currentUser.email || '';
+
+        const perfil = (currentUser.tipo_perfil || 'participante').toLowerCase();
+        const badge = document.getElementById('user-role-badge');
+        badge.textContent = perfil;
+
+        if (perfil === 'admin') {
+          badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30';
+        } else if (perfil === 'organizador') {
+          badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30';
+        } else {
+          badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          // Participante: esconde botões de gestão avançada se preferir
+          const btnNovoEvento = document.getElementById('btn-novo-evento');
+          const btnNovoCert = document.getElementById('btn-novo-certificado');
+          if (btnNovoEvento) btnNovoEvento.classList.add('opacity-50');
+          if (btnNovoCert) btnNovoCert.classList.add('opacity-50');
+        }
+
+      } catch (err) {
+        handleLogout();
+      }
+    }
+
+    // ----------------------------------------------------
+    // MÓDULO: EVENTOS
+    // ----------------------------------------------------
+    async function carregarEventos() {
+      const loading = document.getElementById('eventos-loading');
+      const empty = document.getElementById('eventos-empty');
+      const grid = document.getElementById('eventos-grid');
+
+      loading.classList.remove('hidden');
+      empty.classList.add('hidden');
+      grid.classList.add('hidden');
+
+      try {
+        const resp = await fetch('/api/v1/eventos/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        loading.classList.add('hidden');
+
+        if (!resp.ok) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        cacheEventos = await resp.json();
+        document.getElementById('count-badge-eventos').textContent = cacheEventos.length;
+        renderizarEventos(cacheEventos);
+        atualizarSelectsEventos();
+
+      } catch (err) {
+        loading.classList.add('hidden');
+        empty.classList.remove('hidden');
+        showToast('Erro ao carregar eventos', 'error');
+      }
+    }
+
+    function renderizarEventos(lista) {
+      const empty = document.getElementById('eventos-empty');
+      const grid = document.getElementById('eventos-grid');
+      grid.innerHTML = '';
+
+      if (!lista || lista.length === 0) {
+        empty.classList.remove('hidden');
+        grid.classList.add('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.classList.remove('hidden');
+
+      const isPrivilegiado = currentUser && (currentUser.tipo_perfil === 'admin' || currentUser.tipo_perfil === 'organizador');
+      const isAdmin = currentUser && currentUser.tipo_perfil === 'admin';
+
+      lista.forEach(ev => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800/80 border border-slate-700/80 rounded-xl p-5 flex flex-col justify-between hover:border-slate-600 transition shadow-lg';
+        
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <h3 class="font-bold text-white text-base leading-tight">${ev.titulo}</h3>
+              <span class="text-xs px-2.5 py-0.5 rounded-full uppercase tracking-wider font-semibold ${
+                ev.status === 'ativo' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-700 text-slate-300'
+              }">
+                ${ev.status || 'ativo'}
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 line-clamp-3 mb-4">${ev.descricao || 'Nenhuma descrição fornecida.'}</p>
+          </div>
+
+          <div class="space-y-3 pt-3 border-t border-slate-700/70">
+            <div class="flex items-center justify-between text-xs text-slate-300">
+              <span class="flex items-center gap-1.5">
+                <i class="fa-regular fa-calendar text-indigo-400"></i> ${ev.data_evento}
+              </span>
+              <span class="flex items-center gap-1.5">
+                <i class="fa-solid fa-users text-indigo-400"></i> Capacidade: ${ev.capacidade}
+              </span>
+            </div>
+
+            <div class="flex items-center justify-end gap-1.5 pt-2">
+              <button onclick="inscreverMeNoEvento('${ev.id}')" title="Inscrever-me" class="px-2.5 py-1 text-xs rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 transition flex items-center gap-1">
+                <i class="fa-solid fa-ticket"></i> Inscrever-se
+              </button>
+
+              ${isPrivilegiado ? `
+                <button onclick="editarEvento('${ev.id}')" title="Editar" class="p-1.5 text-xs rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+              ` : ''}
+
+              ${isAdmin ? `
+                <button onclick="excluirEvento('${ev.id}')" title="Excluir" class="p-1.5 text-xs rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function filtrarEventos() {
+      const termo = document.getElementById('search-eventos').value.toLowerCase();
+      const filtrados = cacheEventos.filter(e => 
+        (e.titulo && e.titulo.toLowerCase().includes(termo)) ||
+        (e.descricao && e.descricao.toLowerCase().includes(termo))
+      );
+      renderizarEventos(filtrados);
+    }
+
+    function abrirModalEvento(evento = null) {
+      document.getElementById('form-evento').reset();
+      const statusContainer = document.getElementById('container-evento-status');
+
+      if (evento) {
+        document.getElementById('modal-evento-titulo').textContent = 'Editar Evento';
+        document.getElementById('evento-id').value = evento.id;
+        document.getElementById('evento-titulo').value = evento.titulo || '';
+        document.getElementById('evento-descricao').value = evento.descricao || '';
+        document.getElementById('evento-data').value = evento.data_evento || '';
+        document.getElementById('evento-capacidade').value = evento.capacidade || '';
+        document.getElementById('evento-status').value = evento.status || 'ativo';
+        statusContainer.classList.remove('hidden');
+      } else {
+        document.getElementById('modal-evento-titulo').textContent = 'Novo Evento';
+        document.getElementById('evento-id').value = '';
+        statusContainer.classList.add('hidden');
+      }
+      abrirModal('modal-evento');
+    }
+
+    function editarEvento(id) {
+      const evento = cacheEventos.find(e => e.id === id);
+      if (evento) abrirModalEvento(evento);
+    }
+
+    async function salvarEvento(e) {
+      e.preventDefault();
+      const id = document.getElementById('evento-id').value;
+      const titulo = document.getElementById('evento-titulo').value.trim();
+      const descricao = document.getElementById('evento-descricao').value.trim();
+      const data_evento = document.getElementById('evento-data').value;
+      const capacidade = parseInt(document.getElementById('evento-capacidade').value, 10);
+      const status = document.getElementById('evento-status').value;
+
+      const payload = { titulo, descricao, data_evento, capacidade };
+      if (id) payload.status = status;
+
+      try {
+        const url = id ? `/api/v1/eventos/${id}` : '/api/v1/eventos/';
+        const method = id ? 'PUT' : 'POST';
+
+        const resp = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          throw new Error(data.detail || 'Erro ao salvar evento');
+        }
+
+        showToast(id ? 'Evento atualizado!' : 'Evento criado com sucesso!');
+        fecharModal('modal-evento');
+        await carregarEventos();
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function excluirEvento(id) {
+      if (!confirm('Deseja realmente excluir este evento? Esta ação não pode ser desfeita.')) return;
+
+      try {
+        const resp = await fetch(`/api/v1/eventos/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir evento');
+
+        showToast('Evento excluído com sucesso!');
+        await carregarEventos();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function inscreverMeNoEvento(eventoId) {
+      if (!currentUser || !currentUser.id) {
+        showToast('Não foi possível identificar o usuário atual.', 'error');
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/v1/inscricoes/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id_usuario: currentUser.id,
+            id_evento: eventoId
+          })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Falha ao se inscrever no evento');
+
+        showToast('Inscrição confirmada com sucesso!');
+        await carregarInscricoes();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ----------------------------------------------------
+    // MÓDULO: INSCRIÇÕES
+    // ----------------------------------------------------
+    async function carregarInscricoes() {
+      const loading = document.getElementById('inscricoes-loading');
+      const empty = document.getElementById('inscricoes-empty');
+      const wrapper = document.getElementById('inscricoes-table-wrapper');
+      const tbody = document.getElementById('inscricoes-table-body');
+
+      loading.classList.remove('hidden');
+      empty.classList.add('hidden');
+      wrapper.classList.add('hidden');
+      tbody.innerHTML = '';
+
+      try {
+        const resp = await fetch('/api/v1/inscricoes/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        loading.classList.add('hidden');
+
+        if (!resp.ok) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        cacheInscricoes = await resp.json();
+        document.getElementById('count-badge-inscricoes').textContent = cacheInscricoes.length;
+
+        if (cacheInscricoes.length === 0) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        wrapper.classList.remove('hidden');
+
+        cacheInscricoes.forEach(ins => {
+          const user = cacheUsuarios.find(u => u.id === ins.id_usuario);
+          const ev = cacheEventos.find(e => e.id === ins.id_evento);
+
+          const nomeUsuario = user ? `${user.nome} (${user.email})` : `ID: ${ins.id_usuario}`;
+          const nomeEvento = ev ? ev.titulo : `ID: ${ins.id_evento}`;
+
+          let statusBadge = 'bg-slate-700 text-slate-300';
+          if (ins.status === 'confirmada') statusBadge = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+          if (ins.status === 'presente') statusBadge = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          if (ins.status === 'cancelada') statusBadge = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/40 transition';
+          tr.innerHTML = `
+            <td class="p-4 font-mono text-xs text-slate-400">${ins.id.substring(0, 8)}...</td>
+            <td class="p-4 text-white font-medium">${nomeUsuario}</td>
+            <td class="p-4 text-slate-200">${nomeEvento}</td>
+            <td class="p-4">
+              <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${statusBadge}">
+                ${ins.status}
+              </span>
+            </td>
+            <td class="p-4 text-xs text-slate-400">${ins.data_inscricao ? ins.data_inscricao.substring(0, 10) : '-'}</td>
+            <td class="p-4 text-right space-x-1">
+              <button onclick="abrirModalStatusInscricao('${ins.id}', '${ins.status}')" title="Mudar Status" class="p-1.5 text-xs rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition">
+                <i class="fa-solid fa-arrows-spin"></i>
+              </button>
+              <button onclick="excluirInscricao('${ins.id}')" title="Excluir" class="p-1.5 text-xs rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        loading.classList.add('hidden');
+        empty.classList.remove('hidden');
+      }
+    }
+
+    function abrirModalInscricao() {
+      atualizarSelectsEventos();
+      atualizarSelectsUsuarios();
+      abrirModal('modal-inscricao');
+    }
+
+    async function salvarInscricao(e) {
+      e.preventDefault();
+      const id_usuario = document.getElementById('inscricao-usuario').value;
+      const id_evento = document.getElementById('inscricao-evento').value;
+
+      try {
+        const resp = await fetch('/api/v1/inscricoes/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id_usuario, id_evento })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao realizar inscrição');
+
+        showToast('Inscrição confirmada com sucesso!');
+        fecharModal('modal-inscricao');
+        await carregarInscricoes();
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function abrirModalStatusInscricao(id, statusAtual) {
+      document.getElementById('status-inscricao-id').value = id;
+      document.getElementById('select-novo-status').value = statusAtual;
+      abrirModal('modal-status-inscricao');
+    }
+
+    async function atualizarStatusInscricao(e) {
+      e.preventDefault();
+      const id = document.getElementById('status-inscricao-id').value;
+      const status = document.getElementById('select-novo-status').value;
+
+      try {
+        const resp = await fetch(`/api/v1/inscricoes/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao alterar status da inscrição');
+
+        showToast('Status da inscrição atualizado!');
+        fecharModal('modal-status-inscricao');
+        await carregarInscricoes();
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function excluirInscricao(id) {
+      if (!confirm('Deseja excluir esta inscrição?')) return;
+
+      try {
+        const resp = await fetch(`/api/v1/inscricoes/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir inscrição');
+
+        showToast('Inscrição removida!');
+        await carregarInscricoes();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ----------------------------------------------------
+    // MÓDULO: CERTIFICADOS
+    // ----------------------------------------------------
+    async function carregarCertificados() {
+      const loading = document.getElementById('certificados-loading');
+      const empty = document.getElementById('certificados-empty');
+      const grid = document.getElementById('certificados-grid');
+
+      loading.classList.remove('hidden');
+      empty.classList.add('hidden');
+      grid.classList.add('hidden');
+      grid.innerHTML = '';
+
+      try {
+        const resp = await fetch('/api/v1/certificados/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        loading.classList.add('hidden');
+
+        if (!resp.ok) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        cacheCertificados = await resp.json();
+        document.getElementById('count-badge-certificados').textContent = cacheCertificados.length;
+
+        if (cacheCertificados.length === 0) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        grid.classList.remove('hidden');
+
+        const isPrivilegiado = currentUser && (currentUser.tipo_perfil === 'admin' || currentUser.tipo_perfil === 'organizador');
+
+        cacheCertificados.forEach(cert => {
+          const user = cacheUsuarios.find(u => u.id === cert.id_usuario);
+          const ev = cacheEventos.find(e => e.id === cert.id_evento);
+
+          const card = document.createElement('div');
+          card.className = 'bg-slate-800/80 border border-slate-700/80 rounded-xl p-5 flex flex-col justify-between hover:border-emerald-500/40 transition shadow-lg relative overflow-hidden';
+          
+          card.innerHTML = `
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold tracking-wide flex items-center gap-1">
+                  <i class="fa-solid fa-award"></i> Certificado Oficial
+                </span>
+                <span class="font-mono text-xs text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">
+                  #${cert.codigo_validacao || 'VALID'}
+                </span>
+              </div>
+
+              <div>
+                <p class="text-xs text-slate-400">Aluno / Participante</p>
+                <h4 class="text-white font-bold text-base">${user ? user.nome : `ID: ${cert.id_usuario}`}</h4>
+              </div>
+
+              <div>
+                <p class="text-xs text-slate-400">Evento</p>
+                <p class="text-sm text-slate-200 font-medium">${ev ? ev.titulo : `ID: ${cert.id_evento}`}</p>
+              </div>
+            </div>
+
+            <div class="pt-4 mt-3 border-t border-slate-700 flex items-center justify-between text-xs">
+              <span class="text-slate-300 flex items-center gap-1">
+                <i class="fa-regular fa-clock text-emerald-400"></i> ${cert.carga_horaria} horas
+              </span>
+              ${isPrivilegiado ? `
+                <button onclick="excluirCertificado('${cert.id}')" title="Excluir Certificado" class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              ` : ''}
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+      } catch (err) {
+        loading.classList.add('hidden');
+        empty.classList.remove('hidden');
+      }
+    }
+
+    function abrirModalCertificado() {
+      atualizarSelectsEventos();
+      atualizarSelectsUsuarios();
+      abrirModal('modal-certificado');
+    }
+
+    async function salvarCertificado(e) {
+      e.preventDefault();
+      const id_usuario = document.getElementById('cert-usuario').value;
+      const id_evento = document.getElementById('cert-evento').value;
+      const carga_horaria = parseInt(document.getElementById('cert-horas').value, 10);
+
+      try {
+        const resp = await fetch('/api/v1/certificados/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id_usuario, id_evento, carga_horaria })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao emitir certificado');
+
+        showToast('Certificado emitido com sucesso!');
+        fecharModal('modal-certificado');
+        await carregarCertificados();
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function excluirCertificado(id) {
+      if (!confirm('Deseja excluir este certificado?')) return;
+
+      try {
+        const resp = await fetch(`/api/v1/certificados/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir certificado');
+
+        showToast('Certificado excluído com sucesso!');
+        await carregarCertificados();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ----------------------------------------------------
+    // MÓDULO: USUÁRIOS
+    // ----------------------------------------------------
+    async function carregarUsuarios() {
+      const loading = document.getElementById('usuarios-loading');
+      const wrapper = document.getElementById('usuarios-table-wrapper');
+      const tbody = document.getElementById('usuarios-table-body');
+
+      loading.classList.remove('hidden');
+      wrapper.classList.add('hidden');
+      tbody.innerHTML = '';
+
+      try {
+        const resp = await fetch('/api/v1/usuarios/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        loading.classList.add('hidden');
+
+        if (!resp.ok) return;
+
+        cacheUsuarios = await resp.json();
+        document.getElementById('count-badge-usuarios').textContent = cacheUsuarios.length;
+
+        wrapper.classList.remove('hidden');
+
+        const isAdmin = currentUser && currentUser.tipo_perfil === 'admin';
+
+        cacheUsuarios.forEach(u => {
+          const perfil = (u.tipo_perfil || 'participante').toLowerCase();
+          let badgeClass = 'bg-slate-700 text-slate-300';
+          if (perfil === 'admin') badgeClass = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+          if (perfil === 'organizador') badgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          if (perfil === 'participante') badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/40 transition';
+          tr.innerHTML = `
+            <td class="p-4 font-mono text-xs text-slate-400">${u.id.substring(0, 8)}...</td>
+            <td class="p-4 text-white font-medium flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs text-indigo-400 font-bold">
+                ${(u.nome || 'U').charAt(0).toUpperCase()}
+              </div>
+              <span>${u.nome}</span>
+            </td>
+            <td class="p-4 text-slate-300">${u.email}</td>
+            <td class="p-4">
+              <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${badgeClass}">
+                ${perfil}
+              </span>
+            </td>
+            <td class="p-4 text-right">
+              ${isAdmin ? `
+                <button onclick="excluirUsuario('${u.id}')" title="Excluir Usuário" class="p-1.5 text-xs rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              ` : `
+                <span class="text-xs text-slate-500 italic">Requer Admin</span>
+              `}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        atualizarSelectsUsuarios();
+
+      } catch (err) {
+        loading.classList.add('hidden');
+      }
+    }
+
+    function abrirModalUsuario() {
+      document.getElementById('form-usuario').reset();
+      abrirModal('modal-usuario');
+    }
+
+    async function salvarUsuario(e) {
+      e.preventDefault();
+      const nome = document.getElementById('user-nome').value.trim();
+      const email = document.getElementById('user-email').value.trim();
+      const senha = document.getElementById('user-senha').value;
+      const tipo_perfil = document.getElementById('user-perfil').value;
+
+      try {
+        const resp = await fetch('/api/v1/usuarios/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, email, senha, tipo_perfil })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao criar usuário');
+
+        showToast('Usuário cadastrado com sucesso!');
+        fecharModal('modal-usuario');
+        await carregarUsuarios();
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function excluirUsuario(id) {
+      if (!confirm('Deseja realmente excluir este usuário?')) return;
+
+      try {
+        const resp = await fetch(`/api/v1/usuarios/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir usuário');
+
+        showToast('Usuário excluído!');
+        await carregarUsuarios();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ----------------------------------------------------
+    // AUXILIARES: POVOAR SELECTS
+    // ----------------------------------------------------
+    function atualizarSelectsEventos() {
+      const selects = [document.getElementById('inscricao-evento'), document.getElementById('cert-evento')];
+      selects.forEach(sel => {
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Selecione um evento...</option>';
+        cacheEventos.forEach(ev => {
+          const opt = document.createElement('option');
+          opt.value = ev.id;
+          opt.textContent = `${ev.titulo} (${ev.data_evento})`;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    function atualizarSelectsUsuarios() {
+      const selects = [document.getElementById('inscricao-usuario'), document.getElementById('cert-usuario')];
+      selects.forEach(sel => {
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Selecione um participante...</option>';
+        cacheUsuarios.forEach(u => {
+          const opt = document.createElement('option');
+          opt.value = u.id;
+          opt.textContent = `${u.nome} - ${u.email}`;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    // Logout
+    function handleLogout() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_info');
+      window.location.href = '/login';
+    }
+  </script>
+</body>
+</html>
