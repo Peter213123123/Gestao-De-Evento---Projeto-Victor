@@ -4,7 +4,7 @@ API REST para centralizar a gestão de eventos acadêmicos: criação de eventos
 
 ![Python](https://img.shields.io/badge/Python-3-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
+![Firestore](https://img.shields.io/badge/Cloud_Firestore-FFCA28?logo=firebase&logoColor=black)
 ![Swagger](https://img.shields.io/badge/Swagger-OAS_3.1-85EA2D?logo=swagger&logoColor=black)
 
 ---
@@ -37,7 +37,7 @@ API REST para centralizar a gestão de eventos acadêmicos: criação de eventos
 10. [Matriz de Permissões](#10-matriz-de-permissões)
 11. [Estrutura do Projeto](#11-estrutura-do-projeto)
 12. [Tecnologias](#12-tecnologias)
-13. [Banco de Dados e Migrations](#13-banco-de-dados-e-migrations)
+13. [Persistência e Instalação / Execução](#13-persistência-e-instalação--execução)
 14. [Backlog](#14-backlog)
 15. [Critérios de Aceitação](#15-critérios-de-aceitação)
 16. [Protótipo Inicial](#16-protótipo-inicial)
@@ -385,7 +385,7 @@ Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscri
 
 ### 18.4 Testes Automatizados (Pytest)
 
-**Status:** ✅ Concluído — **64/64 testes aprovados (100% PASSED)**.
+**Status:** ✅ Concluído — **68/68 testes aprovados (100% PASSED)**.
 
 | Arquivo | Cobertura |
 | :--- | :--- |

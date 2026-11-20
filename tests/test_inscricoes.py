@@ -108,7 +108,7 @@ def test_participante_nao_exclui_inscricao_de_outro(client, participante, outro_
 
 def test_participante_exclui_a_propria_inscricao(client, participante, novo_evento, nova_inscricao):
     inscricao_id = nova_inscricao(participante["id"], novo_evento())
-    assert client.delete(f"{BASE}{inscricao_id}", headers=participante["headers"]).status_code == 200
+    assert client.delete(f"{BASE}{inscricao_id}", headers=participante["headers"]).status_code == 204
     assert not fake_db.collection("inscricoes").document(inscricao_id).get().exists
 
 

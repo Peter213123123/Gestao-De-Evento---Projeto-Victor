@@ -83,4 +83,5 @@ def test_alterar_perfil_de_usuario_inexistente_retorna_404(client, admin):
 
 def test_so_admin_exclui_usuario(client, admin, participante, outro_participante):
     assert client.delete(f"{BASE}{outro_participante['id']}", headers=participante["headers"]).status_code == 403
-    assert client.delete(f"{BASE}{outro_participante['id']}", headers=admin["headers"]).status_code == 200
+    assert client.delete(f"{BASE}{outro_participante['id']}", headers=admin["headers"]).status_code == 204
+
