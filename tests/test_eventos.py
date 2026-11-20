@@ -76,5 +76,16 @@ def test_somente_admin_exclui_evento(client, request, perfil, novo_evento):
 
 def test_admin_exclui_evento(client, admin, novo_evento):
     evento_id = novo_evento()
-    assert client.delete(f"{BASE}{evento_id}", headers=admin["headers"]).status_code == 200
+    assert client.delete(f"{BASE}{evento_id}", headers=admin["headers"]).status_code == 204
     assert not fake_db.collection("eventos").document(evento_id).get().exists
+
+
+def test_nao_exclui_evento_com_inscricoes_ativas(client, admin, participante, novo_evento, nova_inscricao):
+    evento_id = novo_evento()
+    nova_inscricao(participante["id"], evento_id, status="confirmada")
+    resp = client.delete(f"{BASE}{evento_id}", headers=admin["headers"])
+    assert resp.status_code == 400
+    assert resp.json()["success"] is False
+    assert resp.json()["error"] == "BadRequest"
+    assert fake_db.collection("eventos").document(evento_id).get().exists
+
