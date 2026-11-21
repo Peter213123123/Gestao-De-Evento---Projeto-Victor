@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from core.auth import get_current_user
 from core.database import db
 from core.permissoes import exigir_permissao, permissao
@@ -14,12 +14,34 @@ def _exigir_dono(inscricao: dict, usuario: dict):
         raise HTTPException(status_code=403, detail="Você só pode alterar as suas próprias inscrições.")
 
 
-@router.get("/", response_model=list[InscricaoResponse])
+@router.get(
+    "/",
+    response_model=list[InscricaoResponse],
+    summary="Listar inscrições",
+    description="Lista todas as inscrições registradas. Restrito a Admin e Organizador.",
+    responses={
+        401: {"description": "Token ausente ou inválido"},
+        403: {"description": "Perfil sem permissão"},
+    },
+)
 def listar_inscricoes(usuario: dict = Depends(permissao("listar_inscritos"))):
     docs = db.collection("inscricoes").stream()
     return [{"id": doc.id, **doc.to_dict()} for doc in docs]
 
-@router.post("/", response_model=InscricaoResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/",
+    response_model=InscricaoResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Realizar inscrição",
+    description="Inscreve o participante autenticado em um evento ativo respeitando capacidade e duplicidade.",
+    responses={
+        400: {"description": "Evento inativo, lotado ou participante já inscrito"},
+        401: {"description": "Token ausente ou inválido"},
+        403: {"description": "Apenas Participante pode se inscrever em seu próprio nome"},
+        404: {"description": "Evento ou usuário não encontrado"},
+    },
+)
 def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(permissao("inscrever_se"))):
     # O participante só se inscreve em seu próprio nome (o id vem do token, não do corpo)
     if inscricao.id_usuario != usuario.get("usuario_id"):
@@ -60,7 +82,19 @@ def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(permissa
     novo_doc = db.collection("inscricoes").add(dados)
     return {"id": novo_doc[1].id, **dados}
 
-@router.put("/{inscricao_id}", response_model=InscricaoResponse)
+
+@router.put(
+    "/{inscricao_id}",
+    response_model=InscricaoResponse,
+    summary="Atualizar status da inscrição",
+    description="Permite ao Participante cancelar a própria inscrição ('cancelada') ou a Admin/Organizador registrar presença ('presente').",
+    responses={
+        400: {"description": "Status inválido"},
+        401: {"description": "Token ausente ou inválido"},
+        403: {"description": "Sem permissão ou tentativa de alterar inscrição de terceiro"},
+        404: {"description": "Inscrição não encontrada"},
+    },
+)
 def atualizar_inscricao(inscricao_id: str, dados_atualizacao: InscricaoUpdate, usuario: dict = Depends(get_current_user)):
     novo_status = dados_atualizacao.status
 
@@ -86,7 +120,19 @@ def atualizar_inscricao(inscricao_id: str, dados_atualizacao: InscricaoUpdate, u
     dados_atualizados = doc_ref.get().to_dict()
     return {"id": inscricao_id, **dados_atualizados}
 
-@router.delete("/{inscricao_id}")
+
+@router.delete(
+    "/{inscricao_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir inscrição",
+    description="Exclui a própria inscrição. Restrito ao Participante dono da inscrição.",
+    responses={
+        204: {"description": "Inscrição excluída com sucesso"},
+        401: {"description": "Token ausente ou inválido"},
+        403: {"description": "Acesso negado"},
+        404: {"description": "Inscrição não encontrada"},
+    },
+)
 def excluir_inscricao(inscricao_id: str, usuario: dict = Depends(permissao("cancelar_inscricao_propria"))):
     doc_ref = db.collection("inscricoes").document(inscricao_id)
     doc = doc_ref.get()
@@ -94,4 +140,4 @@ def excluir_inscricao(inscricao_id: str, usuario: dict = Depends(permissao("canc
         raise HTTPException(status_code=404, detail="Inscrição não encontrada")
     _exigir_dono(doc.to_dict(), usuario)
     doc_ref.delete()
-    return {"mensagem": "Inscrição excluída com sucesso!"}
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

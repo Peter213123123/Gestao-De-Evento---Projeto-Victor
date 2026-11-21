@@ -4,7 +4,7 @@ API REST para centralizar a gestão de eventos acadêmicos: criação de eventos
 
 ![Python](https://img.shields.io/badge/Python-3-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
+![Firestore](https://img.shields.io/badge/Cloud_Firestore-FFCA28?logo=firebase&logoColor=black)
 ![Swagger](https://img.shields.io/badge/Swagger-OAS_3.1-85EA2D?logo=swagger&logoColor=black)
 
 ---
@@ -37,11 +37,12 @@ API REST para centralizar a gestão de eventos acadêmicos: criação de eventos
 10. [Matriz de Permissões](#10-matriz-de-permissões)
 11. [Estrutura do Projeto](#11-estrutura-do-projeto)
 12. [Tecnologias](#12-tecnologias)
-13. [Banco de Dados e Migrations](#13-banco-de-dados-e-migrations)
+13. [Persistência e Instalação / Execução](#13-persistência-e-instalação--execução)
 14. [Backlog](#14-backlog)
 15. [Critérios de Aceitação](#15-critérios-de-aceitação)
 16. [Protótipo Inicial](#16-protótipo-inicial)
 17. [Implementações Realizadas](#17-implementações-realizadas)
+18. [Entregáveis e Evidências](#18-entregáveis-e-evidências)
 
 ---
 
@@ -359,3 +360,47 @@ O MVP técnico já possui:
 - [x] **7.** Rotas de usuário (cadastro e login)
 - [x] **8.** Proteção de rotas, revisão e evidências
 - [x] **9.** Perfis de usuário e matriz de permissões aplicada aos endpoints (`core/permissoes.py`)
+
+## 18. Entregáveis e Evidências
+
+### 18.1 Autenticação e Segurança (`401` / `403`)
+
+**Status:** ✅ Concluído e testado.
+
+O sistema valida tokens JWT, rejeita acessos sem autenticação com `401 Unauthorized` e bloqueia acessos indevidos por perfil com `403 Forbidden`.
+
+**Evidência:** `tests/test_auth.py`.
+
+### 18.2 Controle de Acesso Baseado em Perfis (RBAC)
+
+**Status:** ✅ Concluído e testado.
+
+Matriz de permissões separada entre `admin`, `organizador` e `participante`, implementada na API e coberta pelos testes automatizados de usuários, eventos e certificados.
+
+### 18.3 Restrição de Recursos Próprios
+
+**Status:** ✅ Concluído e testado.
+
+Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscricoes.py`): o participante só consegue criar, cancelar ou excluir as **próprias** inscrições, sob pena de `403 Forbidden`.
+
+### 18.4 Testes Automatizados (Pytest)
+
+**Status:** ✅ Concluído — **68/68 testes aprovados (100% PASSED)**.
+
+| Arquivo | Cobertura |
+| :--- | :--- |
+| `tests/test_auth.py` | Fluxos de login bem-sucedidos e com falha, tokens expirados e inválidos. |
+| `tests/test_eventos.py` | Criação, listagem, edição e exclusão de eventos por perfil. |
+| `tests/test_inscricoes.py` | Regras de capacidade, duplicidade e restrição de dono. |
+| `tests/test_certificados.py` | Emissão de certificados. |
+| `tests/test_usuarios.py` | Gerenciamento de perfis administrativos. |
+
+Para executar:
+
+```bash
+pytest
+```
+
+### 18.5 Sincronização do Repositório (Git & GitHub)
+
+**Status:** ✅ Concluído e atualizado.

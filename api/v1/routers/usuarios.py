@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from schemas.usuario_schema import UsuarioCriar, UsuarioLogin, UsuarioPerfilUpdate, UsuarioResponse
+from schemas.usuario_schema import UsuarioCriar, UsuarioPerfilUpdate, UsuarioResponse
 from core.database import db
 from core.security import get_password_hash, verify_password, create_access_token
 from core.auth import get_current_user
@@ -8,9 +8,19 @@ from core.permissoes import ADMIN, PARTICIPANTE, permissao
 
 router = APIRouter()
 
-@router.post("/", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/",
+    response_model=UsuarioResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cadastrar usuário",
+    description="Cadastro público de usuário. Sempre cria o perfil 'participante' e armazena a senha com hash bcrypt.",
+    responses={
+        400: {"description": "E-mail já cadastrado no sistema"},
+        422: {"description": "Dados de entrada inválidos"},
+    },
+)
 def criar_usuario(usuario: UsuarioCriar):
-    # Verifica se o e-mail já está cadastrado no Firestore
     existente = db.collection("usuarios").where("email", "==", usuario.email).limit(1).get()
     if existente:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado no sistema")
@@ -20,17 +30,27 @@ def criar_usuario(usuario: UsuarioCriar):
         "nome": usuario.nome,
         "email": usuario.email,
         "senha": senha_criptografada,
-        "tipo_perfil": PARTICIPANTE  # cadastro público nunca cria admin/organizador
+        "tipo_perfil": PARTICIPANTE,  # cadastro público nunca cria admin/organizador
     }
     novo_doc = db.collection("usuarios").add(dados_usuario)
     return {
         "id": novo_doc[1].id,
         "nome": usuario.nome,
         "email": usuario.email,
-        "tipo_perfil": PARTICIPANTE
+        "tipo_perfil": PARTICIPANTE,
     }
 
-@router.get("/me", response_model=UsuarioResponse)
+
+@router.get(
+    "/me",
+    response_model=UsuarioResponse,
+    summary="Obter próprio perfil",
+    description="Retorna os dados do usuário autenticado pelo token JWT.",
+    responses={
+        401: {"description": "Token ausente, inválido ou expirado"},
+        404: {"description": "Usuário não encontrado"},
+    },
+)
 def obter_meu_perfil(current_user: dict = Depends(get_current_user)):
     """Rota obrigatória /usuarios/me que retorna os dados do próprio usuário autenticado."""
     usuario_id = current_user.get("usuario_id")
@@ -42,7 +62,7 @@ def obter_meu_perfil(current_user: dict = Depends(get_current_user)):
                 "id": doc.id,
                 "nome": dados.get("nome", ""),
                 "email": dados.get("email", current_user.get("sub", "")),
-                "tipo_perfil": dados.get("tipo_perfil", "participante")
+                "tipo_perfil": dados.get("tipo_perfil", "participante"),
             }
 
     email = current_user.get("sub")
@@ -55,10 +75,20 @@ def obter_meu_perfil(current_user: dict = Depends(get_current_user)):
         "id": doc.id,
         "nome": dados.get("nome", ""),
         "email": dados.get("email", email),
-        "tipo_perfil": dados.get("tipo_perfil", "participante")
+        "tipo_perfil": dados.get("tipo_perfil", "participante"),
     }
 
-@router.get("/", response_model=list[UsuarioResponse])
+
+@router.get(
+    "/",
+    response_model=list[UsuarioResponse],
+    summary="Listar usuários",
+    description="Lista todos os usuários cadastrados (sem expor senhas). Restrito a Admin.",
+    responses={
+        401: {"description": "Token ausente ou inválido"},
+        403: {"description": "Acesso restrito a Admin"},
+    },
+)
 def listar_usuarios(current_user: dict = Depends(permissao("gerenciar_usuarios"))):
     docs = db.collection("usuarios").stream()
     lista = []
@@ -68,15 +98,40 @@ def listar_usuarios(current_user: dict = Depends(permissao("gerenciar_usuarios")
         lista.append({"id": doc.id, **dados})
     return lista
 
-@router.delete("/{usuario_id}")
+
+@router.delete(
+    "/{usuario_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir usuário",
+    description="Remove um usuário pelo ID. Restrito a Admin.",
+    responses={
+        204: {"description": "Usuário excluído com sucesso"},
+        401: {"description": "Token ausente ou inválido"},
+        403: {"description": "Acesso restrito a Admin"},
+        404: {"description": "Usuário não encontrado"},
+    },
+)
 def excluir_usuario(usuario_id: str, current_user: dict = Depends(permissao("gerenciar_usuarios"))):
     doc_ref = db.collection("usuarios").document(usuario_id)
     if not doc_ref.get().exists:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     doc_ref.delete()
-    return {"mensagem": "Usuário excluído com sucesso!"}
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@router.patch("/{usuario_id}/perfil", response_model=UsuarioResponse)
+
+@router.patch(
+    "/{usuario_id}/perfil",
+    response_model=UsuarioResponse,
+    summary="Alterar perfil de usuário",
+    description="Promove ou rebaixa o perfil de um usuário ('admin', 'organizador', 'participante'). Restrito a Admin.",
+    responses={
+        400: {"description": "Admin não pode remover o próprio perfil de admin"},
+        401: {"description": "Token ausente ou inválido"},
+        403: {"description": "Acesso restrito a Admin"},
+        404: {"description": "Usuário não encontrado"},
+        422: {"description": "Perfil inválido"},
+    },
+)
 def alterar_perfil(
     usuario_id: str,
     dados: UsuarioPerfilUpdate,
@@ -100,7 +155,15 @@ def alterar_perfil(
         "tipo_perfil": dados.tipo_perfil,
     }
 
-@router.post("/login")
+
+@router.post(
+    "/login",
+    summary="Autenticar usuário (Login JWT)",
+    description="Autentica via OAuth2 (informe o e-mail no campo `username`) e retorna um Bearer token JWT.",
+    responses={
+        401: {"description": "E-mail ou senha inválidos"},
+    },
+)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """Endpoint de Login usando OAuth2PasswordRequestForm (username recebe o email)."""
     docs = db.collection("usuarios").where("email", "==", form_data.username).limit(1).get()
@@ -115,6 +178,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     token = create_access_token({
         "sub": usuario_db["email"],
         "usuario_id": doc.id,
-        "tipo_perfil": usuario_db.get("tipo_perfil")
+        "tipo_perfil": usuario_db.get("tipo_perfil"),
     })
     return {"access_token": token, "token_type": "bearer"}
