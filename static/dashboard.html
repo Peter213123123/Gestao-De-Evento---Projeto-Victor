@@ -70,7 +70,7 @@
   </nav>
 
   <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
-  <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm pointer-events-none"></div>
+  <div id="toast-container" class="fixed top-20 right-4 z-[100] space-y-2 max-w-sm pointer-events-none"></div>
 
   <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
@@ -561,6 +561,10 @@
     function fecharModal(id) {
       document.getElementById(id).classList.add('hidden');
     }
+    function fecharModalENotificar(modalId, mensagem, tipo = 'error') {
+      fecharModal(modalId);
+      setTimeout(() => showToast(mensagem, tipo), 150);
+    }
 
     // ----------------------------------------------------
     // PERFIL DO USUÁRIO
@@ -765,15 +769,14 @@
         const data = await resp.json();
 
         if (!resp.ok) {
-          throw new Error(data.detail || 'Erro ao salvar evento');
+          throw new Error(data.message || data.detail || 'Erro ao salvar evento');
         }
 
-        showToast(id ? 'Evento atualizado!' : 'Evento criado com sucesso!');
-        fecharModal('modal-evento');
+        fecharModalENotificar('modal-evento', id ? 'Evento atualizado!' : 'Evento criado com sucesso!', 'success');
         await carregarEventos();
 
       } catch (err) {
-        showToast(err.message, 'error');
+        fecharModalENotificar('modal-evento', err.message, 'error');
       }
     }
 
@@ -925,14 +928,13 @@
         });
 
         const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao realizar inscrição');
+        if (!resp.ok) throw new Error(data.message || data.detail || 'Erro ao realizar inscrição');
 
-        showToast('Inscrição confirmada com sucesso!');
-        fecharModal('modal-inscricao');
+        fecharModalENotificar('modal-inscricao', 'Inscrição confirmada com sucesso!', 'success');
         await carregarInscricoes();
 
       } catch (err) {
-        showToast(err.message, 'error');
+        fecharModalENotificar('modal-inscricao', err.message, 'error');
       }
     }
 
@@ -958,14 +960,16 @@
         });
 
         const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao alterar status da inscrição');
+        if (!resp.ok) throw new Error(data.message || data.detail || 'Erro ao alterar status da inscrição');
 
-        showToast('Status da inscrição atualizado!');
-        fecharModal('modal-status-inscricao');
+        fecharModalENotificar('modal-status-inscricao', 'Status da inscrição atualizado!', 'success');
         await carregarInscricoes();
+        if (status === 'presente') {
+          await carregarCertificados();
+        }
 
       } catch (err) {
-        showToast(err.message, 'error');
+        fecharModalENotificar('modal-status-inscricao', err.message, 'error');
       }
     }
 
@@ -978,8 +982,10 @@
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir inscrição');
+        if (!resp.ok) {
+          const data = resp.status !== 204 ? await resp.json() : {};
+          throw new Error(data.message || data.detail || 'Erro ao excluir inscrição');
+        }
 
         showToast('Inscrição removida!');
         await carregarInscricoes();
@@ -1059,9 +1065,15 @@
                 <i class="fa-regular fa-clock text-emerald-400"></i> ${cert.carga_horaria} horas
               </span>
               ${isPrivilegiado ? `
-                <button onclick="excluirCertificado('${cert.id}')" title="Excluir Certificado" class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                  <button onclick="reenviarCertificado('${cert.id}')" title="Reenviar Certificado por E-mail" class="px-2.5 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>Reenviar E-mail</span>
+                  </button>
+                  <button onclick="excluirCertificado('${cert.id}')" title="Excluir Certificado" class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
               ` : ''}
             </div>
           `;
@@ -1097,12 +1109,28 @@
         });
 
         const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao emitir certificado');
+        if (!resp.ok) throw new Error(data.message || data.detail || 'Erro ao emitir certificado');
 
-        showToast('Certificado emitido com sucesso!');
-        fecharModal('modal-certificado');
+        fecharModalENotificar('modal-certificado', 'Certificado emitido com sucesso!', 'success');
         await carregarCertificados();
 
+      } catch (err) {
+        fecharModalENotificar('modal-certificado', err.message, 'error');
+      }
+    }
+
+    async function reenviarCertificado(id) {
+      try {
+        showToast('Enviando certificado por e-mail...');
+        const resp = await fetch(`/api/v1/certificados/${id}/reenviar`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || data.detail || 'Erro ao reenviar certificado');
+
+        showToast(data.message || 'Certificado reenviado por e-mail!');
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -1117,8 +1145,10 @@
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir certificado');
+        if (!resp.ok) {
+          const data = resp.status !== 204 ? await resp.json() : {};
+          throw new Error(data.message || data.detail || 'Erro ao excluir certificado');
+        }
 
         showToast('Certificado excluído com sucesso!');
         await carregarCertificados();
@@ -1174,9 +1204,17 @@
             </td>
             <td class="p-4 text-slate-300">${u.email}</td>
             <td class="p-4">
-              <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${badgeClass}">
-                ${perfil}
-              </span>
+              ${isAdmin ? `
+                <select onchange="alterarPerfilUsuario('${u.id}', this.value)" class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-semibold uppercase tracking-wider text-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                  <option value="participante" ${perfil === 'participante' ? 'selected' : ''}>participante</option>
+                  <option value="organizador" ${perfil === 'organizador' ? 'selected' : ''}>organizador</option>
+                  <option value="admin" ${perfil === 'admin' ? 'selected' : ''}>admin</option>
+                </select>
+              ` : `
+                <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${badgeClass}">
+                  ${perfil}
+                </span>
+              `}
             </td>
             <td class="p-4 text-right">
               ${isAdmin ? `
@@ -1218,14 +1256,48 @@
         });
 
         const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao criar usuário');
+        if (!resp.ok) throw new Error(data.detail || data.message || 'Erro ao criar usuário');
 
-        showToast('Usuário cadastrado com sucesso!');
-        fecharModal('modal-usuario');
+        if (tipo_perfil && tipo_perfil !== 'participante') {
+          const patchResp = await fetch(`/api/v1/usuarios/${data.id}/perfil`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ tipo_perfil })
+          });
+          if (!patchResp.ok) {
+            const patchData = await patchResp.json();
+            throw new Error(patchData.detail || patchData.message || 'Usuário criado, mas falhou ao definir perfil');
+          }
+        }
+
+        fecharModalENotificar('modal-usuario', 'Usuário cadastrado com sucesso!', 'success');
         await carregarUsuarios();
 
       } catch (err) {
+        fecharModalENotificar('modal-usuario', err.message, 'error');
+      }
+    }
+
+    async function alterarPerfilUsuario(id, tipo_perfil) {
+      try {
+        const resp = await fetch(`/api/v1/usuarios/${id}/perfil`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ tipo_perfil })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || data.message || 'Erro ao alterar perfil');
+        showToast(`Perfil atualizado para ${tipo_perfil}!`);
+        await carregarUsuarios();
+      } catch (err) {
         showToast(err.message, 'error');
+        await carregarUsuarios();
       }
     }
 

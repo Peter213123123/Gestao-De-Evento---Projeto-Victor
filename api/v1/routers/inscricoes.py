@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import uuid
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from core.auth import get_current_user
 from core.database import db
+from core.email_service import enviar_email_certificado, enviar_email_confirmacao_inscricao
 from core.permissoes import exigir_permissao, permissao
 from schemas.inscricao_schema import InscricaoCreate, InscricaoUpdate, InscricaoResponse
 
@@ -42,7 +44,11 @@ def listar_inscricoes(usuario: dict = Depends(permissao("listar_inscritos"))):
         404: {"description": "Evento ou usuário não encontrado"},
     },
 )
-def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(permissao("inscrever_se"))):
+def criar_inscricao(
+    inscricao: InscricaoCreate,
+    background_tasks: BackgroundTasks,
+    usuario: dict = Depends(permissao("inscrever_se")),
+):
     # O participante só se inscreve em seu próprio nome (o id vem do token, não do corpo)
     if inscricao.id_usuario != usuario.get("usuario_id"):
         raise HTTPException(status_code=403, detail="Você só pode realizar inscrições em seu próprio nome.")
@@ -80,7 +86,19 @@ def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(permissa
     dados["status"] = "confirmada"
     dados["data_inscricao"] = datetime.now(timezone.utc).isoformat()
     novo_doc = db.collection("inscricoes").add(dados)
-    return {"id": novo_doc[1].id, **dados}
+    inscricao_id = novo_doc[1].id
+
+    usuario_data = usuario_doc.to_dict() or {}
+    background_tasks.add_task(
+        enviar_email_confirmacao_inscricao,
+        email_destino=usuario_data.get("email", ""),
+        nome_participante=usuario_data.get("nome", "Participante"),
+        titulo_evento=evento_data.get("titulo", "Evento Acadêmico"),
+        data_evento=evento_data.get("data_evento", ""),
+        inscricao_id=inscricao_id,
+    )
+
+    return {"id": inscricao_id, **dados}
 
 
 @router.put(
@@ -95,7 +113,12 @@ def criar_inscricao(inscricao: InscricaoCreate, usuario: dict = Depends(permissa
         404: {"description": "Inscrição não encontrada"},
     },
 )
-def atualizar_inscricao(inscricao_id: str, dados_atualizacao: InscricaoUpdate, usuario: dict = Depends(get_current_user)):
+def atualizar_inscricao(
+    inscricao_id: str,
+    dados_atualizacao: InscricaoUpdate,
+    background_tasks: BackgroundTasks,
+    usuario: dict = Depends(get_current_user),
+):
     novo_status = dados_atualizacao.status
 
     # 1. Perfil: quem pode fazer cada tipo de alteração
@@ -118,6 +141,38 @@ def atualizar_inscricao(inscricao_id: str, dados_atualizacao: InscricaoUpdate, u
 
     doc_ref.update({"status": novo_status})
     dados_atualizados = doc_ref.get().to_dict()
+
+    # Ao concluir participação ('presente'), emite o certificado (se ainda não existir) e envia por e-mail
+    if novo_status == "presente":
+        id_usuario = dados_atualizados.get("id_usuario", "")
+        id_evento = dados_atualizados.get("id_evento", "")
+        existentes = db.collection("certificados").where("id_evento", "==", id_evento).stream()
+        ja_emitido = any(c.to_dict().get("id_usuario") == id_usuario for c in existentes)
+        if not ja_emitido and id_usuario and id_evento:
+            codigo_validacao = str(uuid.uuid4())[:8].upper()
+            emitido_em = datetime.now(timezone.utc).isoformat()
+            u_doc = db.collection("usuarios").document(id_usuario).get()
+            e_doc = db.collection("eventos").document(id_evento).get()
+            u_data = u_doc.to_dict() if u_doc.exists else {}
+            e_data = e_doc.to_dict() if e_doc.exists else {}
+
+            db.collection("certificados").add({
+                "id_usuario": id_usuario,
+                "id_evento": id_evento,
+                "carga_horaria": int(e_data.get("carga_horaria", 10)),
+                "codigo_validacao": codigo_validacao,
+                "emitido_em": emitido_em,
+            })
+
+            background_tasks.add_task(
+                enviar_email_certificado,
+                email_destino=u_data.get("email", ""),
+                nome_participante=u_data.get("nome", "Participante"),
+                titulo_evento=e_data.get("titulo", "Evento Acadêmico"),
+                codigo_validacao=codigo_validacao,
+                emitido_em=emitido_em,
+            )
+
     return {"id": inscricao_id, **dados_atualizados}
 
 
