@@ -1,6 +1,6 @@
 # 📅 Gerenciador de Eventos Acadêmicos
 
-API REST para centralizar a gestão de eventos acadêmicos: cadastro e autenticação de usuários, criação e gestão de eventos, controle de capacidade, inscrições e emissão de certificados, com persistência no Cloud Firestore.
+API REST para centralizar a gestão de eventos acadêmicos: criação de eventos, controle de capacidade, inscrições e, futuramente, emissão automatizada de certificados.
 
 ![Python](https://img.shields.io/badge/Python-3-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
@@ -31,30 +31,34 @@ API REST para centralizar a gestão de eventos acadêmicos: cadastro e autentica
 4. [Entidades Principais](#4-entidades-principais)
 5. [Modelo de Dados](#5-modelo-de-dados)
 6. [Dicionário de Dados](#6-dicionário-de-dados)
-7. [Contratos e Endpoints da API](#7-contratos-e-endpoints-da-api)
+7. [Contratos da API](#7-contratos-da-api)
 8. [Status Codes](#8-status-codes)
 9. [Padrão de Resposta e Erro](#9-padrão-de-resposta-e-erro)
 10. [Matriz de Permissões](#10-matriz-de-permissões)
 11. [Estrutura do Projeto](#11-estrutura-do-projeto)
 12. [Tecnologias](#12-tecnologias)
-13. [Persistência, Instalação e Execução](#13-persistência-instalação-e-execução)
+13. [Persistência e Instalação / Execução](#13-persistência-e-instalação--execução)
 14. [Backlog](#14-backlog)
 15. [Critérios de Aceitação](#15-critérios-de-aceitação)
-16. [Implementações Realizadas](#16-implementações-realizadas)
-17. [Testes Automatizados e Evidências](#17-testes-automatizados-e-evidências)
+16. [Protótipo Inicial](#16-protótipo-inicial)
+17. [Implementações Realizadas](#17-implementações-realizadas)
+18. [Entregáveis e Evidências](#18-entregáveis-e-evidências)
 
 ---
 
 ## 1. Contexto do Problema
 
 **Qual problema o sistema resolve?**
-A gestão manual e descentralizada de eventos acadêmicos (planilhas e formulários soltos) gera retrabalho, perda de dados, inscrições duplicadas e lentidão na emissão de certificados.
+Hoje a gestão de eventos acadêmicos na instituição é manual e descentralizada (planilhas e formulários soltos), o que gera retrabalho, perda de dados, inscrições duplicadas e lentidão na emissão de certificados.
 
 **Quem vai usar?**
 Alunos (participantes), professores/coordenadores (organizadores) e a Secretaria/TI da instituição (administradores).
 
 **Qual o objetivo da API?**
-Centralizar todo o fluxo de eventos acadêmicos, desde a criação da atividade e o controle de capacidade até a gestão de inscrições, registro de presença e emissão de certificados.
+Centralizar todo o fluxo de eventos acadêmicos, desde a criação da atividade e o controle de capacidade até a gestão de inscrições e, no futuro, a emissão automatizada de certificados.
+
+**Qual o escopo da primeira versão?**
+O MVP (Minimum Viable Product) foca no CRUD de usuários, na criação de eventos e no processamento de inscrições, com persistência em banco de dados e documentação Swagger ativa.
 
 ---
 
@@ -62,9 +66,9 @@ Centralizar todo o fluxo de eventos acadêmicos, desde a criação da atividade 
 
 | Perfil | Descrição |
 | :--- | :--- |
-| **Admin** | Controle total. Gerencia usuários, perfis, eventos, inscrições e certificados. |
-| **Organizador** | Professores ou coordenadores. Criam e editam eventos, listam inscritos, registram presença e emitem certificados. |
-| **Participante** | Alunos ou visitantes. Visualizam eventos disponíveis, realizam e cancelam a própria inscrição e consultam certificados. |
+| **Admin** | Controle total. Gerencia todos os usuários, eventos e configurações globais. |
+| **Organizador** | Professores ou coordenadores. Criam, editam e gerenciam apenas os próprios eventos e listam os inscritos neles. |
+| **Participante** | Alunos ou visitantes. Visualizam eventos disponíveis, realizam e cancelam a própria inscrição. |
 
 ---
 
@@ -72,41 +76,38 @@ Centralizar todo o fluxo de eventos acadêmicos, desde a criação da atividade 
 
 1. Um usuário não pode se inscrever duas vezes no mesmo evento.
 2. Um evento não aceita novas inscrições se a capacidade máxima for atingida.
-3. Não é permitido cadastrar ou atualizar um evento com `data_evento` no passado ou `capacidade <= 0`.
+3. Não é permitido cadastrar um evento com `data_evento` no passado.
 4. O e-mail de um usuário deve ser único em todo o sistema.
-5. Um participante só pode criar, cancelar ou excluir a própria inscrição, sem alterar inscrições de terceiros.
-6. Apenas usuários com perfil **Admin** ou **Organizador** podem criar/editar eventos; apenas **Admin** pode excluir eventos.
-7. Um evento não pode ser excluído se houver inscrições ativas vinculadas.
-8. A senha do usuário não pode trafegar em retornos da API nem ser salva em texto plano (utiliza hash `bcrypt`).
-9. Inscrições só podem ser feitas em eventos com status **`ativo`**.
-10. A emissão de certificado é bloqueada para participantes sem o status **`presente`** (e impede emissão duplicada no mesmo evento).
+5. Um participante só pode cancelar a própria inscrição, sem alterar inscrições de terceiros.
+6. Apenas usuários com perfil **Admin** ou **Organizador** podem criar novos eventos.
+7. Um evento não pode ser excluído se houver inscrições vinculadas (deve ser inativado, ou as inscrições canceladas primeiro).
+8. A senha do usuário não pode trafegar nem ser salva em texto plano (deve usar hash).
+9. Inscrições só podem ser feitas em eventos com status **"ativo"**.
+10. A emissão de certificado (escopo futuro) será bloqueada para participantes sem o status **"Presença Confirmada"**.
 
 ---
 
 ## 4. Entidades Principais
 
-- **Usuário (`usuarios`):** identifica quem acessa o sistema, permitindo autenticação JWT e controle de acesso por perfil.
-- **Evento (`eventos`):** armazena as informações das atividades acadêmicas oferecidas (`titulo`, `descricao`, `data_evento`, `capacidade`, `status`).
-- **Inscrição (`inscricoes`):** conecta o usuário ao evento, registrando `data_inscricao` e `status` (`confirmada`, `cancelada`, `presente`).
-- **Certificado (`certificados`):** registra a emissão do certificado (`id_usuario`, `id_evento`, `carga_horaria`, `codigo_validacao`, `emitido_em`).
+- **Usuário:** identifica quem acessa o sistema, permitindo autenticação e divisão de papéis.
+- **Evento:** núcleo do sistema. Armazena as informações das atividades acadêmicas oferecidas.
+- **Inscrição:** tabela associativa que conecta o usuário ao evento, registrando a data da inscrição e o status.
 
 ---
 
 ## 5. Modelo de Dados
 
-**Relacionamentos:**
+**Relacionamentos (DER):**
 
 - Usuário (1) — (N) Inscrição: um usuário pode ter várias inscrições.
 - Evento (1) — (N) Inscrição: um evento pode ter várias inscrições.
-- Usuário (1) — (N) Certificado e Evento (1) — (N) Certificado.
 
-**Coleções no Cloud Firestore:**
+**Estrutura relacional inicial:**
 
 ```text
-usuarios     (id, nome, email, senha [hash bcrypt], tipo_perfil)
-eventos      (id, titulo, descricao, data_evento, capacidade, status)
-inscricoes   (id, id_usuario, id_evento, data_inscricao, status)
-certificados (id, id_usuario, id_evento, carga_horaria, codigo_validacao, emitido_em)
+usuarios   (id [PK], nome, email, senha_hash, tipo_perfil, criado_em)
+eventos    (id [PK], titulo, descricao, data_evento, capacidade, status, organizador_id [FK -> usuarios.id])
+inscricoes (id [PK], usuario_id [FK -> usuarios.id], evento_id [FK -> eventos.id], data_inscricao, status)
 ```
 
 ---
@@ -115,44 +116,18 @@ certificados (id, id_usuario, id_evento, carga_horaria, codigo_validacao, emitid
 
 | Entidade | Campo | Tipo | Obrigatório | Regra / Restrição |
 | :--- | :--- | :--- | :---: | :--- |
-| Usuário | `email` | string | Sim | Único no sistema. |
-| Usuário | `senha` | string | Sim | Mínimo 6 caracteres; armazenada com hash `bcrypt`. |
-| Usuário | `tipo_perfil` | string | Sim | Apenas: `admin`, `organizador`, `participante`. |
-| Evento | `titulo` | string | Sim | Mínimo 3 caracteres. |
-| Evento | `capacidade` | int | Sim | Deve ser maior que `0`. |
-| Evento | `data_evento` | date | Sim | Não pode ser anterior à data atual. |
-| Evento | `status` | string | Sim | Inicial `ativo` (`ativo`, `concluido`, `cancelado`). |
-| Inscrição | `status` | string | Sim | `confirmada`, `cancelada` ou `presente`. |
-| Certificado | `carga_horaria` | int | Sim | Deve ser maior que `0`. |
+| Usuário | email | string | Sim | Único, formato de e-mail válido. |
+| Usuário | tipo_perfil | string | Sim | Apenas: `admin`, `organizador`, `participante`. |
+| Evento | capacidade | int | Sim | Deve ser maior que 0. |
+| Evento | data_evento | date | Sim | Não pode ser menor que a data atual. |
+| Evento | status | string | Sim | Apenas: `ativo`, `concluido`, `cancelado`. |
+| Inscrição | status | string | Sim | Apenas: `confirmada`, `cancelada`, `presente`. |
 
 ---
 
-## 7. Contratos e Endpoints da API
+## 7. Contratos da API
 
-### Resumo dos Endpoints
-
-| Recurso | Método | Rota | Descrição |
-| :--- | :---: | :--- | :--- |
-| Infraestrutura | `GET` | `/health` | Healthcheck operacional da API |
-| Usuários | `POST` | `/api/v1/usuarios/` | Cadastro público (sempre cria `participante`) |
-| Usuários | `POST` | `/api/v1/usuarios/login` | Login OAuth2 (`username` = e-mail) com retorno de JWT |
-| Usuários | `GET` | `/api/v1/usuarios/me` | Dados do próprio usuário autenticado |
-| Usuários | `GET` | `/api/v1/usuarios/` | Lista todos os usuários sem expor senha (Admin) |
-| Usuários | `PATCH` | `/api/v1/usuarios/{usuario_id}/perfil` | Altera o perfil do usuário (Admin) |
-| Usuários | `DELETE` | `/api/v1/usuarios/{usuario_id}` | Remove um usuário (Admin) |
-| Eventos | `GET` | `/api/v1/eventos/` | Lista todos os eventos |
-| Eventos | `POST` | `/api/v1/eventos/` | Cria evento com status inicial `ativo` |
-| Eventos | `PUT` | `/api/v1/eventos/{evento_id}` | Atualiza evento existente |
-| Eventos | `DELETE` | `/api/v1/eventos/{evento_id}` | Exclui evento sem inscrições ativas |
-| Inscrições | `GET` | `/api/v1/inscricoes/` | Lista todas as inscrições |
-| Inscrições | `POST` | `/api/v1/inscricoes/` | Inscreve o participante autenticado em um evento ativo |
-| Inscrições | `PUT` | `/api/v1/inscricoes/{inscricao_id}` | Atualiza status para `cancelada` ou `presente` |
-| Inscrições | `DELETE` | `/api/v1/inscricoes/{inscricao_id}` | Exclui a própria inscrição |
-| Certificados | `GET` | `/api/v1/certificados/` | Lista certificados emitidos |
-| Certificados | `POST` | `/api/v1/certificados/` | Emite certificado para participante `presente` |
-| Certificados | `DELETE` | `/api/v1/certificados/{certificado_id}` | Exclui certificado |
-
-### Exemplo: `POST /api/v1/usuarios/` — Criação de usuário
+### `POST /api/v1/usuarios` — Criação de usuário
 
 **Request:**
 
@@ -164,16 +139,17 @@ certificados (id, id_usuario, id_evento, carga_horaria, codigo_validacao, emitid
 }
 ```
 
-> **Nota:** o perfil não é enviado no cadastro. Todo cadastro público cria um `participante`; somente um Admin altera o perfil em `PATCH /api/v1/usuarios/{id}/perfil`.
+> **Nota:** o perfil não é enviado no cadastro. Todo cadastro público cria um `participante`; somente um Admin altera o perfil.
 
 **Response `201 Created`:**
 
 ```json
 {
-  "id": "usr_123",
+  "id": 1,
   "nome": "João Silva",
   "email": "joao@email.com",
-  "tipo_perfil": "participante"
+  "tipo_perfil": "participante",
+  "criado_em": "2026-09-24T10:00:00"
 }
 ```
 
@@ -185,40 +161,28 @@ certificados (id, id_usuario, id_evento, carga_horaria, codigo_validacao, emitid
 
 | Situação | Status HTTP |
 | :--- | :--- |
-| Consulta ou atualização realizada com sucesso | `200 OK` |
-| Registro criado com sucesso (usuário, evento, inscrição, certificado) | `201 Created` |
+| Registro criado com sucesso (usuário, evento, inscrição) | `201 Created` |
+| Consulta realizada com sucesso (listagens) | `200 OK` |
 | Exclusão realizada com sucesso | `204 No Content` |
-| Erro de regra de negócio (ex.: evento lotado, data no passado) | `400 Bad Request` |
-| Usuário não autenticado (token ausente, inválido ou expirado) | `401 Unauthorized` |
-| Sem permissão ou tentativa de alterar recurso de terceiros | `403 Forbidden` |
+| Erro de validação de dados (Pydantic/Schema) | `422 Unprocessable Entity` |
 | Registro não encontrado (ex.: ID inexistente) | `404 Not Found` |
-| Erro de validação de dados (Pydantic / Schema) | `422 Unprocessable Entity` |
-| Erro interno inesperado no servidor | `500 Internal Server Error` |
+| Erro de regra de negócio (ex.: evento lotado) | `400 Bad Request` |
+| Usuário não autenticado (falta de token) | `401 Unauthorized` |
+| Sem permissão (ex.: participante tentando criar evento) | `403 Forbidden` |
 
 ---
 
 ## 9. Padrão de Resposta e Erro
 
-Todas as exceções são tratadas globalmente em `core/exceptions.py`, retornando um envelope padronizado:
+Foi adotado um envelope padrão para que o front-end saiba exatamente como ler as respostas.
 
 **Exemplo de erro de regra de negócio (`400`):**
 
 ```json
 {
   "success": false,
-  "error": "BadRequest",
+  "error": "CapacidadeMaximaAtingida",
   "message": "Não é possível realizar a inscrição. O evento atingiu sua capacidade máxima."
-}
-```
-
-**Exemplo de erro de validação (`422`):**
-
-```json
-{
-  "success": false,
-  "error": "ValidationError",
-  "message": "Erro de validação nos dados enviados.",
-  "details": []
 }
 ```
 
@@ -252,77 +216,60 @@ Legenda: 🌐 público · 🔒 exige token (sem token → `401`) · ✅ permitid
 | `GET /api/v1/eventos/` | 🔒 | ✅ | ✅ | ✅ | — |
 | `POST /api/v1/eventos/` | 🔒 | ✅ | ✅ | ❌ | — |
 | `PUT /api/v1/eventos/{id}` | 🔒 | ✅ | ✅ | ❌ | — |
-| `DELETE /api/v1/eventos/{id}` | 🔒 | ✅ | ❌ | ❌ | Bloqueado se houver inscrições ativas |
+| `DELETE /api/v1/eventos/{id}` | 🔒 | ✅ | ❌ | ❌ | — |
 | `POST /api/v1/inscricoes/` | 🔒 | ❌ | ❌ | ✅ | O `id_usuario` precisa ser o do token |
 | `GET /api/v1/inscricoes/` | 🔒 | ✅ | ✅ | ❌ | Lista os inscritos |
 | `PUT /api/v1/inscricoes/{id}` (`cancelada`) | 🔒 | ❌ | ❌ | ✅ | Somente a própria inscrição |
 | `PUT /api/v1/inscricoes/{id}` (`presente`) | 🔒 | ✅ | ✅ | ❌ | Registro de presença (check-in) |
 | `DELETE /api/v1/inscricoes/{id}` | 🔒 | ❌ | ❌ | ✅ | Somente a própria inscrição |
 | `GET /api/v1/certificados/` | 🔒 | ✅ | ✅ | ✅ | — |
-| `POST /api/v1/certificados/` | 🔒 | ✅ | ✅ | ❌ | Exige presença confirmada e impede duplicidade |
+| `POST /api/v1/certificados/` | 🔒 | ✅ | ✅ | ❌ | — |
 | `DELETE /api/v1/certificados/{id}` | 🔒 | ✅ | ✅ | ❌ | — |
 
-### 10.3 Como a matriz está no código
+### 10.3 Erros de acesso
 
-- Os três perfis (`admin`, `organizador`, `participante`) e o dicionário `MATRIZ` ficam em `core/permissoes.py`.
-- Cada endpoint usa `Depends(permissao("nome_da_acao"))`.
-- O perfil `tipo_perfil` é validado em `schemas/usuario_schema.py` e `models/usuario.py`.
+| Situação | Status |
+| :--- | :---: |
+| Sem token, token inválido ou token expirado | `401 Unauthorized` |
+| Token válido, mas o perfil não tem permissão para a ação | `403 Forbidden` |
+| Token válido, perfil correto, mas o recurso pertence a outro usuário | `403 Forbidden` |
 
-### 10.4 Como criar o primeiro Admin
+### 10.4 Como a matriz está no código
+
+- Os três perfis (`admin`, `organizador`, `participante`) e a matriz ficam em `core/permissoes.py`, no dicionário `MATRIZ` (ação → perfis autorizados).
+- Cada endpoint declara a ação com `Depends(permissao("nome_da_acao"))`. Para mudar uma permissão, edita-se somente o `MATRIZ`.
+- O perfil `tipo_perfil` é validado em `schemas/usuario_schema.py` (`Perfil`) e em `models/usuario.py`.
+
+### 10.5 Como criar o primeiro Admin
+
+O cadastro público cria apenas participantes. Para criar o primeiro admin:
 
 1. Cadastre o usuário normalmente em `POST /api/v1/usuarios/`.
 2. No console do Firebase, abra o Firestore, coleção `usuarios`, e altere o campo `tipo_perfil` desse documento para `admin`.
-3. Faça login novamente em `POST /api/v1/usuarios/login` para gerar um novo token com o perfil atualizado.
+3. Faça login de novo (o perfil fica gravado no token).
 
-Depois disso, o Admin pode promover outros usuários via `PATCH /api/v1/usuarios/{id}/perfil`.
+Depois disso, o admin promove organizadores por `PATCH /api/v1/usuarios/{id}/perfil` com o corpo `{"tipo_perfil": "organizador"}`.
 
 ---
 
 ## 11. Estrutura do Projeto
 
+Organizada para escalabilidade, separando responsabilidades:
+
 ```text
-Entrega-3/
+app/
 ├── api/
-│   ├── api.py                      # Registro central dos routers v1
 │   └── v1/
 │       └── routers/
-│           ├── usuarios.py         # Cadastro, login JWT, /me e gestão de perfis
-│           ├── eventos.py          # CRUD de eventos acadêmicos
-│           ├── inscricoes.py       # Inscrições, cancelamento e check-in
-│           └── certificados.py     # Emissão, listagem e exclusão de certificados
+│           ├── usuarios.py
+│           ├── eventos.py
+│           └── inscricoes.py
 ├── core/
-│   ├── auth.py                     # OAuth2PasswordBearer e validação de JWT
-│   ├── config.py                   # Leitura de variáveis de ambiente (.env)
-│   ├── database.py                 # Inicialização do Firebase Admin e cliente Firestore
-│   ├── exceptions.py               # Handlers globais e padronização de erros
-│   ├── permissoes.py               # Matriz de permissões RBAC
-│   └── security.py                 # Hash bcrypt e criação de tokens JWT
-├── models/                         # Modelos de domínio auxiliares
-│   ├── evento.py
-│   ├── inscricao.py
-│   └── usuario.py
-├── schemas/                        # Contratos Pydantic de entrada e saída
-│   ├── certificado_schema.py
-│   ├── evento_schema.py
-│   ├── inscricao_schema.py
-│   └── usuario_schema.py
-├── static/                         # Interface web básica (login e dashboard)
-│   ├── dashboard.html
-│   └── login.html
-├── tests/                          # Suíte de testes automatizados (Pytest)
-│   ├── conftest.py
-│   ├── fake_firestore.py
-│   ├── test_auth.py
-│   ├── test_certificados.py
-│   ├── test_eventos.py
-│   ├── test_inscricoes.py
-│   └── test_usuarios.py
-├── Dockerfile                      # Containerização para deploy
-├── Procfile                        # Comando de inicialização web
-├── render.yaml                     # Blueprint de deploy no Render
-├── pytest.ini                      # Configuração do Pytest
-├── requirements.txt                # Dependências do projeto
-└── main.py                         # Instância FastAPI, Swagger, CORS e rotas estáticas
+│   ├── config.py        # Variáveis de ambiente
+│   └── database.py      # Conexão e sessão
+├── models/              # Classes SQLAlchemy
+├── schemas/             # Classes Pydantic (entrada/saída)
+└── main.py              # Instância do FastAPI
 ```
 
 ---
@@ -331,70 +278,26 @@ Entrega-3/
 
 | Tecnologia | Uso no projeto |
 | :--- | :--- |
-| **Python 3 / FastAPI** | Construção da API REST, tipagem e documentação OpenAPI/Swagger automática. |
-| **Uvicorn** | Servidor ASGI para execução local e em produção. |
-| **Cloud Firestore (`firebase-admin`)** | Banco de dados NoSQL em nuvem para persistência de usuários, eventos, inscrições e certificados. |
-| **Pydantic / pydantic-settings** | Validação de entrada/saída e schemas do OpenAPI. |
-| **PyJWT** | Geração e validação de tokens de autenticação JWT (`Bearer`). |
-| **Passlib + Bcrypt** | Hashing seguro de senhas. |
-| **Pytest** | Suíte de testes automatizados (cenários positivos e negativos). |
-| **Docker / Render** | Empacotamento e configuração de deploy em nuvem. |
+| **Python 3 / FastAPI** | Construção da API REST. Alta performance, tipagem estática e Swagger automático. |
+| **SQLite / SQL Server** | SQLite no MVP para desenvolvimento rápido; a arquitetura permite migração fácil para SQL Server em produção. |
+| **SQLAlchemy** | ORM, evitando queries manuais e protegendo contra SQL Injection. |
+| **Alembic** | Versionamento do banco (migrations), mantendo o esquema sincronizado na equipe. |
+| **Pydantic** | Validação rigorosa de entrada e saída, com erros claros para JSON inválido. |
 
 ---
 
-## 13. Persistência, Instalação e Execução
+## 13. Banco de Dados e Migrations
 
-### 13.1 Estratégia de Persistência e Variáveis de Ambiente
+- **Banco do MVP:** SQLite (arquivo local).
+- **Migrations:** controladas via Alembic.
 
-A aplicação utiliza **Cloud Firestore** (via `firebase-admin`). Em `core/database.py`, as credenciais podem ser fornecidas de três formas:
-
-- `FIREBASE_CREDENTIALS_JSON`: conteúdo JSON da conta de serviço (ideal para deploy em nuvem como o Render).
-- `FIREBASE_CREDENTIALS_BASE64`: conteúdo JSON codificado em Base64.
-- `FIREBASE_CREDENTIALS_PATH`: caminho para o arquivo local `.json` da conta de serviço (ideal para desenvolvimento local).
-
-Crie um arquivo `.env` na raiz do projeto com as variáveis:
-
-```env
-SECRET_KEY=sua_chave_secreta_forte
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-FIREBASE_CREDENTIALS_PATH=caminho/para/firebase-adminsdk.json
-```
-
-### 13.2 Instalação e Execução Local
+Comandos iniciais utilizados:
 
 ```bash
-# 1. Clone o repositório e acesse a pasta
-git clone https://github.com/Peter213123123/Entrega-3.git
-cd Entrega-3
-
-# 2. Crie e ative o ambiente virtual
-python -m venv .venv
-source .venv/bin/activate        # Linux/macOS
-# .venv\Scripts\activate         # Windows
-
-# 3. Instale as dependências
-pip install -r requirements.txt
-
-# 4. Inicie o servidor FastAPI
-uvicorn main:app --reload
+alembic init alembic
+alembic revision --autogenerate -m "criacao_tabelas_iniciais_usuario_evento_inscricao"
+alembic upgrade head
 ```
-
-Após iniciar, acesse:
-
-- **Swagger UI (OpenAPI):** `http://localhost:8000/docs`
-- **ReDoc:** `http://localhost:8000/redoc`
-- **Healthcheck:** `http://localhost:8000/health`
-- **Tela de Login:** `http://localhost:8000/login`
-
-### 13.3 Execução com Docker / Deploy (Render)
-
-```bash
-docker build -t entrega-3-api .
-docker run -p 8000:8000 --env-file .env entrega-3-api
-```
-
-Para deploy no **Render**, o repositório já inclui `render.yaml` e `Procfile`, exigindo a configuração das variáveis `SECRET_KEY` e `FIREBASE_CREDENTIALS_JSON`.
 
 ---
 
@@ -410,8 +313,8 @@ Para deploy no **Render**, o repositório já inclui `render.yaml` e `Procfile`,
 | US06 | Como participante, quero me inscrever em um evento específico. | Alta |
 | US07 | Como participante, quero cancelar minha inscrição caso eu desista. | Média |
 | US08 | Como organizador, quero listar todos os participantes inscritos no meu evento. | Alta |
-| US09 | Como admin, quero excluir ou inativar um evento que foi cancelado pela instituição. | Baixa |
-| US10 | Como organizador, quero dar "check-in" na presença dos inscritos e emitir certificados. | Média |
+| US09 | Como admin, quero inativar um evento que foi cancelado pela instituição. | Baixa |
+| US10 | Como organizador, quero dar "check-in" na presença dos inscritos. | Baixa (V2) |
 
 ---
 
@@ -421,50 +324,83 @@ Para deploy no **Render**, o repositório já inclui `render.yaml` e `Procfile`,
 
 1. O sistema deve exigir título, data e capacidade.
 2. A data do evento não pode ser salva se for anterior ao dia de hoje.
-3. A capacidade deve ser um número inteiro maior que `0`.
+3. A capacidade deve ser um número inteiro maior que 0.
 4. O sistema deve atribuir automaticamente o status `ativo` na criação.
 5. O sistema deve retornar `201 Created` em caso de sucesso.
 
 ### Inscrição em Evento (US06)
 
-1. O sistema deve vincular o ID do participante autenticado ao ID do evento.
-2. O sistema deve rejeitar a inscrição e retornar `400` se a capacidade máxima já foi atingida ou se houver duplicidade.
-3. O sistema deve rejeitar a inscrição se o evento não estiver ativo.
+1. O sistema deve vincular o ID do participante logado ao ID do evento.
+2. O sistema deve rejeitar a inscrição e retornar `400` se a capacidade máxima já foi atingida.
+3. O sistema deve rejeitar a inscrição se o participante já estiver inscrito no mesmo evento.
 4. O sistema deve retornar `201 Created` e os dados da inscrição (data e hora).
 5. Se o ID do evento fornecido não existir, o sistema deve retornar `404 Not Found`.
 
 ---
 
-## 16. Implementações Realizadas
+## 16. Protótipo Inicial
 
-- [x] **1.** Configuração inicial e infraestrutura do Firebase (Cloud Firestore)
-- [x] **2.** Conexão e carregamento flexível de credenciais na API (`core/database.py`)
-- [x] **3.** Models e schemas Pydantic com documentação OpenAPI
-- [x] **4.** CRUDs completos de Usuários, Eventos, Inscrições e Certificados
-- [x] **5.** Segurança, hash de senhas (`bcrypt`) e autenticação JWT (`OAuth2PasswordBearer`)
-- [x] **6.** Controle de acesso baseado em perfis (`core/permissoes.py`) e restrição de dono
-- [x] **7.** Padronização global de exceções e status codes (`core/exceptions.py`)
-- [x] **8.** Configurações de deploy (`Dockerfile`, `Procfile`, `render.yaml`)
-- [x] **9.** Suíte de testes automatizados com Pytest (`68` testes)
+O MVP técnico já possui:
+
+- [x] Projeto FastAPI configurado e rodando localmente na porta `8000`.
+- [x] Documentação interativa Swagger (OAS 3.1) na rota `/docs`.
+- [x] Rotas estruturadas e modularizadas (ex.: `/api/v1/usuarios/`, `/api/v1/eventos/`).
+- [x] Schemas de validação Pydantic aplicados (ex.: body do POST de usuários).
 
 ---
 
-## 17. Testes Automatizados e Evidências
+## 17. Implementações Realizadas
 
-### 17.1 Cobertura da Suíte (Pytest)
+- [x] **1.** Configuração inicial e infraestrutura do Firebase
+- [x] **2.** Conexão e configuração do Firestore na API
+- [x] **3.** Refatoração dos models e schemas
+- [x] **4.** Adaptação dos CRUDs existentes (eventos e inscrições)
+- [x] **5.** Segurança e criptografia (hashing)
+- [x] **6.** Mecanismo de autenticação e JWT
+- [x] **7.** Rotas de usuário (cadastro e login)
+- [x] **8.** Proteção de rotas, revisão e evidências
+- [x] **9.** Perfis de usuário e matriz de permissões aplicada aos endpoints (`core/permissoes.py`)
 
-**Status:** ✅ **68/68 testes aprovados (100% PASSED)** utilizando `FakeFirestore` (`tests/fake_firestore.py`) para isolar o banco de dados durante os testes.
+## 18. Entregáveis e Evidências
+
+### 18.1 Autenticação e Segurança (`401` / `403`)
+
+**Status:** ✅ Concluído e testado.
+
+O sistema valida tokens JWT, rejeita acessos sem autenticação com `401 Unauthorized` e bloqueia acessos indevidos por perfil com `403 Forbidden`.
+
+**Evidência:** `tests/test_auth.py`.
+
+### 18.2 Controle de Acesso Baseado em Perfis (RBAC)
+
+**Status:** ✅ Concluído e testado.
+
+Matriz de permissões separada entre `admin`, `organizador` e `participante`, implementada na API e coberta pelos testes automatizados de usuários, eventos e certificados.
+
+### 18.3 Restrição de Recursos Próprios
+
+**Status:** ✅ Concluído e testado.
+
+Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscricoes.py`): o participante só consegue criar, cancelar ou excluir as **próprias** inscrições, sob pena de `403 Forbidden`.
+
+### 18.4 Testes Automatizados (Pytest)
+
+**Status:** ✅ Concluído — **68/68 testes aprovados (100% PASSED)**.
 
 | Arquivo | Cobertura |
 | :--- | :--- |
-| `tests/test_auth.py` | Login válido e inválido, `/usuarios/me`, tokens ausentes, inválidos, expirados e assinados com outra chave (`401` e `403`). |
-| `tests/test_usuarios.py` | Cadastro público, hash de senha, e-mail duplicado, listagem sem expor senha, alteração de perfil e exclusão por Admin. |
-| `tests/test_eventos.py` | Criação, listagem, edição e exclusão por perfil, data no passado, capacidade `<= 0` e bloqueio de exclusão com inscrições ativas. |
-| `tests/test_inscricoes.py` | Inscrição, duplicidade, lotação máxima, evento inativo/inexistente, restrição de dono, cancelamento, exclusão e check-in (`presente`). |
-| `tests/test_certificados.py` | Emissão por Admin/Organizador, bloqueio para participante, exigência de presença confirmada, bloqueio de duplicidade e exclusão. |
+| `tests/test_auth.py` | Fluxos de login bem-sucedidos e com falha, tokens expirados e inválidos. |
+| `tests/test_eventos.py` | Criação, listagem, edição e exclusão de eventos por perfil. |
+| `tests/test_inscricoes.py` | Regras de capacidade, duplicidade e restrição de dono. |
+| `tests/test_certificados.py` | Emissão de certificados. |
+| `tests/test_usuarios.py` | Gerenciamento de perfis administrativos. |
 
-Para executar todos os testes:
+Para executar:
 
 ```bash
-pytest -v
+pytest
 ```
+
+### 18.5 Sincronização do Repositório (Git & GitHub)
+
+**Status:** ✅ Concluído e atualizado.
