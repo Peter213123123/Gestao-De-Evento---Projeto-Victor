@@ -27,3 +27,12 @@ class UsuarioResponse(BaseModel):
     nome: str = Field(..., description="Nome completo do usuário")
     email: str = Field(..., description="E-mail do usuário")
     tipo_perfil: str = Field(..., description="Perfil de acesso (admin, organizador ou participante)")
+
+
+class EsqueciSenhaRequest(BaseModel):
+    email: str = Field(..., description="E-mail cadastrado para receber o link de redefinição", examples=["joao@email.com"])
+
+
+class RedefinirSenhaRequest(BaseModel):
+    token: str = Field(..., description="Token JWT enviado por e-mail")
+    nova_senha: str = Field(..., min_length=6, description="Nova senha com no mínimo 6 caracteres", examples=["novasenha123"])

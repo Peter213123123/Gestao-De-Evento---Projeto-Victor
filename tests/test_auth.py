@@ -4,9 +4,11 @@ Usa as fixtures do tests/conftest.py: o app roda com um Firestore falso em memó
 então os usuários de teste são criados por `criar_usuario` (e não vêm de um banco real).
 """
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import jwt
 
+from core.security import create_password_reset_token
 from tests.conftest import SECRET_KEY_TESTE, SENHA_PADRAO
 
 LOGIN = "/api/v1/usuarios/login"
@@ -108,3 +110,59 @@ def test_me_retorna_os_dados_do_usuario_autenticado(client, organizador):
     assert corpo["email"] == organizador["email"]
     assert corpo["tipo_perfil"] == "organizador"
     assert "senha" not in corpo
+
+
+def test_esqueci_senha_envia_link_e_redefine_com_sucesso(client, participante):
+    with patch("api.v1.routers.usuarios.enviar_email_recuperacao_senha", return_value=True) as mock_email:
+        resp = client.post("/api/v1/usuarios/esqueci-senha", json={"email": participante["email"]})
+        assert resp.status_code == 200
+        mock_email.assert_called_once()
+        link = mock_email.call_args.kwargs["link_recuperacao"]
+        assert "/login?reset_token=" in link
+        token = link.split("reset_token=")[1]
+
+    resp_reset = client.post(
+        "/api/v1/usuarios/redefinir-senha",
+        json={"token": token, "nova_senha": "novasenha999"},
+    )
+    assert resp_reset.status_code == 200
+
+    # Login com a senha nova funciona; com a antiga falha
+    assert client.post(LOGIN, data={"username": participante["email"], "password": "novasenha999"}).status_code == 200
+    assert client.post(LOGIN, data={"username": participante["email"], "password": SENHA_PADRAO}).status_code == 401
+
+    # Reutilizar o mesmo link/token é bloqueado
+    resp_reuso = client.post(
+        "/api/v1/usuarios/redefinir-senha",
+        json={"token": token, "nova_senha": "outrasenha123"},
+    )
+    assert resp_reuso.status_code == 400
+
+
+def test_esqueci_senha_email_inexistente_nao_expoe_e_nao_envia(client):
+    with patch("api.v1.routers.usuarios.enviar_email_recuperacao_senha", return_value=True) as mock_email:
+        resp = client.post("/api/v1/usuarios/esqueci-senha", json={"email": "naoexiste@teste.com"})
+        assert resp.status_code == 200
+        mock_email.assert_not_called()
+
+
+def test_redefinir_senha_com_token_invalido_retorna_400(client):
+    resp = client.post(
+        "/api/v1/usuarios/redefinir-senha",
+        json={"token": "token.invalido", "nova_senha": "novasenha123"},
+    )
+    assert resp.status_code == 400
+
+
+def test_redefinir_senha_nao_aceita_token_de_login(client, participante):
+    resp = client.post(
+        "/api/v1/usuarios/redefinir-senha",
+        json={"token": participante["token"], "nova_senha": "novasenha123"},
+    )
+    assert resp.status_code == 400
+
+
+def test_token_de_recuperacao_nao_autentica_em_rotas_protegidas(client, participante):
+    reset_token = create_password_reset_token(participante["email"], participante["id"])
+    resp = client.get("/api/v1/usuarios/me", headers={"Authorization": f"Bearer {reset_token}"})
+    assert resp.status_code == 401

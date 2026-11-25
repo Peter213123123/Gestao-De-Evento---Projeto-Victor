@@ -1,8 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import uuid
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from schemas.usuario_schema import UsuarioCriar, UsuarioPerfilUpdate, UsuarioResponse
+import jwt
+from schemas.usuario_schema import (
+    EsqueciSenhaRequest,
+    RedefinirSenhaRequest,
+    UsuarioCriar,
+    UsuarioPerfilUpdate,
+    UsuarioResponse,
+)
 from core.database import db
-from core.security import get_password_hash, verify_password, create_access_token
+from core.email_service import enviar_email_recuperacao_senha
+from core.security import (
+    create_access_token,
+    create_password_reset_token,
+    get_password_hash,
+    verify_password,
+    verify_password_reset_token,
+)
 from core.auth import get_current_user
 from core.permissoes import ADMIN, PARTICIPANTE, permissao
 
@@ -183,3 +198,80 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "tipo_perfil": usuario_db.get("tipo_perfil"),
     })
     return {"access_token": token, "token_type": "bearer"}
+
+
+@router.post(
+    "/esqueci-senha",
+    summary="Solicitar recuperação de senha",
+    description="Envia por SMTP um link temporário (15 min) para redefinir a senha, caso o e-mail esteja cadastrado.",
+    responses={
+        200: {"description": "Solicitação processada"},
+        422: {"description": "Dados de entrada inválidos"},
+    },
+)
+def esqueci_senha(dados: EsqueciSenhaRequest, request: Request, background_tasks: BackgroundTasks):
+    email_normalizado = dados.email.strip().lower()
+    docs = db.collection("usuarios").where("email", "==", email_normalizado).limit(1).get()
+    if docs:
+        doc = docs[0]
+        usuario_db = doc.to_dict() or {}
+        jti = str(uuid.uuid4())
+        db.collection("usuarios").document(doc.id).update({"reset_jti": jti})
+
+        reset_token = create_password_reset_token(
+            email=email_normalizado,
+            usuario_id=doc.id,
+            jti=jti,
+        )
+        base_url = str(request.base_url).rstrip("/")
+        link_recuperacao = f"{base_url}/login?reset_token={reset_token}"
+
+        background_tasks.add_task(
+            enviar_email_recuperacao_senha,
+            email_destino=email_normalizado,
+            nome_usuario=usuario_db.get("nome", "Usuário"),
+            link_recuperacao=link_recuperacao,
+        )
+
+    return {
+        "message": "Se o e-mail estiver cadastrado, enviaremos um link para redefinir sua senha."
+    }
+
+
+@router.post(
+    "/redefinir-senha",
+    summary="Redefinir senha com token",
+    description="Valida o token de recuperação recebido por e-mail e atualiza a senha com hash bcrypt.",
+    responses={
+        200: {"description": "Senha redefinida com sucesso"},
+        400: {"description": "Token inválido, expirado ou já utilizado"},
+        404: {"description": "Usuário não encontrado"},
+        422: {"description": "Nova senha inválida"},
+    },
+)
+def redefinir_senha(dados: RedefinirSenhaRequest):
+    try:
+        payload = verify_password_reset_token(dados.token)
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=400, detail="Token de recuperação inválido ou expirado.")
+
+    usuario_id = payload.get("usuario_id")
+    email = payload.get("sub")
+    doc = db.collection("usuarios").document(usuario_id).get() if usuario_id else None
+    if not doc or not doc.exists:
+        docs = db.collection("usuarios").where("email", "==", email).limit(1).get()
+        if not docs:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        doc = docs[0]
+
+    usuario_db = doc.to_dict() or {}
+    jti_atual = usuario_db.get("reset_jti")
+    if jti_atual is not None and payload.get("jti") != jti_atual:
+        raise HTTPException(status_code=400, detail="Este link de recuperação já foi utilizado ou substituído.")
+
+    db.collection("usuarios").document(doc.id).update({
+        "senha": get_password_hash(dados.nova_senha),
+        "reset_jti": "USADO",
+    })
+    return {"message": "Senha redefinida com sucesso! Você já pode fazer login."}
+

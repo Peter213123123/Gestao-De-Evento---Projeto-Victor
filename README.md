@@ -212,6 +212,8 @@ Legenda: 🌐 público · 🔒 exige token (sem token → `401`) · ✅ permitid
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | `POST /api/v1/usuarios/` | 🌐 | — | — | — | O cadastro público sempre cria `participante` |
 | `POST /api/v1/usuarios/login` | 🌐 | — | — | — | Retorna o JWT |
+| `POST /api/v1/usuarios/esqueci-senha` | 🌐 | — | — | — | Envia link temporário (15 min) via SMTP |
+| `POST /api/v1/usuarios/redefinir-senha` | 🌐 | — | — | — | Valida token único e grava nova senha (hash bcrypt) |
 | `GET /api/v1/usuarios/me` | 🔒 | ✅ | ✅ | ✅ | Retorna apenas os dados do próprio usuário |
 | `GET /api/v1/usuarios/` | 🔒 | ✅ | ❌ | ❌ | — |
 | `PATCH /api/v1/usuarios/{id}/perfil` | 🔒 | ✅ | ❌ | ❌ | Admin não pode remover o próprio perfil de admin |
@@ -465,11 +467,11 @@ Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscri
 
 ### 18.4 Testes Automatizados (Pytest)
 
-**Status:** ✅ Concluído — **75/75 testes aprovados (100% PASSED)**.
+**Status:** ✅ Concluído — **80/80 testes aprovados (100% PASSED)**.
 
 | Arquivo | Quantidade | Cobertura |
 | :--- | :---: | :--- |
-| `tests/test_auth.py` | 10 | Login válido, falhas de credencial (`401`), tokens expirados/inválidos, perfil proibido (`403`) e `/usuarios/me`. |
+| `tests/test_auth.py` | 15 | Login válido, falhas de credencial (`401`), tokens expirados/inválidos, perfil proibido (`403`), `/usuarios/me` e fluxo completo de recuperação de senha (`esqueci-senha` / `redefinir-senha`). |
 | `tests/test_eventos.py` | 16 | Criação, listagem, edição (com validação de título/status) e exclusão por perfil; bloqueio de data passada, capacidade `<= 0` e evento com inscritos. |
 | `tests/test_inscricoes.py` | 22 | Regras de capacidade, duplicidade, dono do recurso, cancelamento, check-in (`presente`) e emissão automática de certificado. |
 | `tests/test_certificados.py` | 12 | Emissão por Admin/Organizador, presença obrigatória, duplicidade, reenvio SMTP mockado e geração PDF/JPG com `Pillow`. |

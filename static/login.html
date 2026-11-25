@@ -51,7 +51,7 @@
     </div>
 
     <!-- Abas / Tabs (Entrar x Cadastrar) -->
-    <div class="flex p-1 bg-slate-800/80 rounded-xl mb-6 border border-white/10">
+    <div id="auth-tabs" class="flex p-1 bg-slate-800/80 rounded-xl mb-6 border border-white/10">
       <button id="tab-login-btn" onclick="switchTab('login')" class="flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white shadow">
         Entrar
       </button>
@@ -109,7 +109,12 @@
           <input type="checkbox" id="remember-me" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-indigo-500">
           <span>Lembrar meu e-mail</span>
         </label>
-        <a href="/docs" target="_blank" class="text-indigo-400 hover:text-indigo-300 hover:underline">Documentação API</a>
+        <div class="flex items-center gap-3">
+          <button type="button" onclick="openForgotPassword()" class="text-indigo-400 hover:text-indigo-300 hover:underline">
+            Esqueci a senha
+          </button>
+          <a href="/docs" target="_blank" class="text-slate-400 hover:text-slate-200 hover:underline">API</a>
+        </div>
       </div>
 
       <button 
@@ -193,6 +198,119 @@
       </button>
     </form>
 
+    <!-- ==================== FORMULÁRIO: ESQUECI A SENHA ==================== -->
+    <form id="form-forgot" onsubmit="handleForgotPassword(event)" class="space-y-4 hidden">
+      <div class="text-center mb-2">
+        <h2 class="text-lg font-bold text-white">Recuperar Senha</h2>
+        <p class="text-xs text-slate-300 mt-1">Informe seu e-mail cadastrado para receber o link de redefinição.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="forgot-email">E-mail</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-regular fa-envelope"></i>
+          </div>
+          <input
+            type="email"
+            id="forgot-email"
+            required
+            placeholder="seu.email@exemplo.com"
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        id="forgot-submit-btn"
+        class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-semibold rounded-lg shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2"
+      >
+        <span id="forgot-spinner" class="hidden">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+        </span>
+        <span id="forgot-btn-text">Enviar Link de Recuperação</span>
+      </button>
+
+      <button
+        type="button"
+        onclick="switchTab('login')"
+        class="w-full py-2 text-xs text-slate-300 hover:text-white underline text-center"
+      >
+        Voltar para o login
+      </button>
+    </form>
+
+    <!-- ==================== FORMULÁRIO: REDEFINIR SENHA ==================== -->
+    <form id="form-reset" onsubmit="handleResetPassword(event)" class="space-y-4 hidden">
+      <div class="text-center mb-2">
+        <h2 class="text-lg font-bold text-white">Nova Senha</h2>
+        <p class="text-xs text-slate-300 mt-1">Defina sua nova senha de acesso (mínimo 6 caracteres).</p>
+      </div>
+
+      <input type="hidden" id="reset-token-input">
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="reset-password">Nova Senha</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <input
+            type="password"
+            id="reset-password"
+            required
+            minlength="6"
+            placeholder="Mínimo 6 caracteres"
+            class="w-full pl-10 pr-10 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+          <button
+            type="button"
+            onclick="togglePasswordVisibility('reset-password', 'toggle-reset-eye')"
+            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white"
+          >
+            <i id="toggle-reset-eye" class="fa-regular fa-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1" for="reset-password-confirm">Confirmar Nova Senha</label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <input
+            type="password"
+            id="reset-password-confirm"
+            required
+            minlength="6"
+            placeholder="Repita a nova senha"
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-sm"
+          >
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        id="reset-submit-btn"
+        class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-semibold rounded-lg shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+      >
+        <span id="reset-spinner" class="hidden">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+        </span>
+        <span id="reset-btn-text">Salvar Nova Senha</span>
+      </button>
+
+      <button
+        type="button"
+        onclick="switchTab('login')"
+        class="w-full py-2 text-xs text-slate-300 hover:text-white underline text-center"
+      >
+        Cancelar e voltar para o login
+      </button>
+    </form>
+
     <!-- Rodapé -->
     <div class="mt-8 text-center text-xs text-slate-400">
       <p>Gestão de Eventos Acadêmicos &bull; FastAPI + Firestore</p>
@@ -203,6 +321,13 @@
   <script>
     // Inicialização
     document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const resetToken = params.get('reset_token');
+      if (resetToken) {
+        openResetPassword(resetToken);
+        return;
+      }
+
       const savedEmail = localStorage.getItem('saved_email');
       if (savedEmail) {
         document.getElementById('login-email').value = savedEmail;
@@ -236,10 +361,17 @@
     // Alternar entre abas Entrar e Cadastrar
     function switchTab(tab) {
       clearAlert();
+      const authTabs = document.getElementById('auth-tabs');
       const tabLoginBtn = document.getElementById('tab-login-btn');
       const tabRegBtn = document.getElementById('tab-register-btn');
       const formLogin = document.getElementById('form-login');
       const formRegister = document.getElementById('form-register');
+      const formForgot = document.getElementById('form-forgot');
+      const formReset = document.getElementById('form-reset');
+
+      authTabs.classList.remove('hidden');
+      formForgot.classList.add('hidden');
+      formReset.classList.add('hidden');
 
       if (tab === 'login') {
         tabLoginBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white shadow';
@@ -252,6 +384,30 @@
         formRegister.classList.remove('hidden');
         formLogin.classList.add('hidden');
       }
+    }
+
+    function openForgotPassword() {
+      clearAlert();
+      document.getElementById('auth-tabs').classList.add('hidden');
+      document.getElementById('form-login').classList.add('hidden');
+      document.getElementById('form-register').classList.add('hidden');
+      document.getElementById('form-reset').classList.add('hidden');
+      document.getElementById('form-forgot').classList.remove('hidden');
+
+      const loginEmail = document.getElementById('login-email').value.trim();
+      if (loginEmail) {
+        document.getElementById('forgot-email').value = loginEmail;
+      }
+    }
+
+    function openResetPassword(resetToken) {
+      clearAlert();
+      document.getElementById('auth-tabs').classList.add('hidden');
+      document.getElementById('form-login').classList.add('hidden');
+      document.getElementById('form-register').classList.add('hidden');
+      document.getElementById('form-forgot').classList.add('hidden');
+      document.getElementById('form-reset').classList.remove('hidden');
+      document.getElementById('reset-token-input').value = resetToken;
     }
 
     // Alternar visualização da senha
@@ -418,6 +574,89 @@
         submitBtn.disabled = false;
         spinner.classList.add('hidden');
         btnText.textContent = 'Cadastrar e Continuar';
+      }
+    }
+
+    // Solicitar recuperação de senha via SMTP
+    async function handleForgotPassword(e) {
+      e.preventDefault();
+      clearAlert();
+
+      const email = document.getElementById('forgot-email').value.trim();
+      const submitBtn = document.getElementById('forgot-submit-btn');
+      const spinner = document.getElementById('forgot-spinner');
+      const btnText = document.getElementById('forgot-btn-text');
+
+      submitBtn.disabled = true;
+      spinner.classList.remove('hidden');
+      btnText.textContent = 'Enviando...';
+
+      try {
+        const response = await fetch('/api/v1/usuarios/esqueci-senha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || data.detail || 'Falha ao enviar solicitação.');
+        }
+        showAlert(data.message || 'Se o e-mail estiver cadastrado, enviaremos o link de recuperação.', 'success');
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        spinner.classList.add('hidden');
+        btnText.textContent = 'Enviar Link de Recuperação';
+      }
+    }
+
+    // Redefinir senha com o token do link
+    async function handleResetPassword(e) {
+      e.preventDefault();
+      clearAlert();
+
+      const token = document.getElementById('reset-token-input').value;
+      const nova_senha = document.getElementById('reset-password').value;
+      const confirmacao = document.getElementById('reset-password-confirm').value;
+
+      if (nova_senha.length < 6) {
+        showAlert('A nova senha deve possuir pelo menos 6 caracteres.', 'error');
+        return;
+      }
+      if (nova_senha !== confirmacao) {
+        showAlert('As senhas digitadas não conferem.', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('reset-submit-btn');
+      const spinner = document.getElementById('reset-spinner');
+      const btnText = document.getElementById('reset-btn-text');
+
+      submitBtn.disabled = true;
+      spinner.classList.remove('hidden');
+      btnText.textContent = 'Salvando...';
+
+      try {
+        const response = await fetch('/api/v1/usuarios/redefinir-senha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, nova_senha })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || data.detail || 'Não foi possível redefinir a senha.');
+        }
+
+        window.history.replaceState({}, document.title, '/login');
+        switchTab('login');
+        showAlert(data.message || 'Senha redefinida com sucesso! Faça login.', 'success');
+      } catch (err) {
+        showAlert(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        spinner.classList.add('hidden');
+        btnText.textContent = 'Salvar Nova Senha';
       }
     }
   </script>
