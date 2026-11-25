@@ -130,3 +130,16 @@ def test_status_invalido_retorna_400(client, participante, novo_evento, nova_ins
     inscricao_id = nova_inscricao(participante["id"], novo_evento())
     resp = client.put(f"{BASE}{inscricao_id}", json={"status": "qualquer"}, headers=participante["headers"])
     assert resp.status_code == 400
+
+
+def test_marcar_presenca_emite_certificado_automaticamente(client, organizador, participante, novo_evento, nova_inscricao):
+    evento_id = novo_evento()
+    inscricao_id = nova_inscricao(participante["id"], evento_id)
+    resp = client.put(f"{BASE}{inscricao_id}", json={"status": "presente"}, headers=organizador["headers"])
+    assert resp.status_code == 200
+
+    certs = client.get("/api/v1/certificados/", headers=participante["headers"]).json()
+    assert len(certs) == 1
+    assert certs[0]["id_usuario"] == participante["id"]
+    assert certs[0]["id_evento"] == evento_id
+    assert certs[0]["carga_horaria"] > 0
