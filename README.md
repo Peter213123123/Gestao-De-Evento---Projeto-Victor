@@ -231,6 +231,7 @@ Legenda: 🌐 público · 🔒 exige token (sem token → `401`) · ✅ permitid
 | `POST /api/v1/certificados/` | 🔒 | ✅ | ✅ | ❌ | Emite certificado e envia PDF/JPG por e-mail |
 | `POST /api/v1/certificados/{id}/reenviar` | 🔒 | ✅ | ✅ | ❌ | Reenvia o certificado por e-mail ao participante |
 | `DELETE /api/v1/certificados/{id}` | 🔒 | ✅ | ✅ | ❌ | — |
+| `GET /api/v1/emails/` | 🔒 | ✅* | ❌ | ❌ | Restrito exclusivamente ao Admin `admingest@gmail.com` |
 
 ### 10.3 Erros de acesso
 
@@ -467,7 +468,7 @@ Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscri
 
 ### 18.4 Testes Automatizados (Pytest)
 
-**Status:** ✅ Concluído — **80/80 testes aprovados (100% PASSED)**.
+**Status:** ✅ Concluído — **85/85 testes aprovados (100% PASSED)**.
 
 | Arquivo | Quantidade | Cobertura |
 | :--- | :---: | :--- |
@@ -476,6 +477,7 @@ Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscri
 | `tests/test_inscricoes.py` | 22 | Regras de capacidade, duplicidade, dono do recurso, cancelamento, check-in (`presente`) e emissão automática de certificado. |
 | `tests/test_certificados.py` | 12 | Emissão por Admin/Organizador, presença obrigatória, duplicidade, reenvio SMTP mockado e geração PDF/JPG com `Pillow`. |
 | `tests/test_usuarios.py` | 15 | Cadastro público sempre `participante`, normalização de e-mail, hash bcrypt, e-mail único, alteração de perfil e exclusão restrita a Admin. |
+| `tests/test_emails.py` | 5 | Histórico de envios SMTP (`401`, `403` para outros perfis/admins e registro de `enviado`/`erro`/`ignorado` para `admingest@gmail.com`). |
 
 Para executar:
 

@@ -44,7 +44,7 @@ f23b1db Add Firebase initial setup and infrastructure details
 
 Comando executado: `.venv/bin/pytest -v`
 
-**Resultado:** `80 passed` (100% aprovados).
+**Resultado:** `85 passed` (100% aprovados).
 
 | Arquivo de Teste | Quantidade | Cenários Cobertos |
 | :--- | :---: | :--- |
@@ -53,6 +53,7 @@ Comando executado: `.venv/bin/pytest -v`
 | `tests/test_eventos.py` | 16 | Criação/edição por Admin/Organizador (status/título validados), exclusão apenas por Admin, data no passado (`400`), capacidade `<= 0` (`400`), exclusão com inscrições ativas (`400`). |
 | `tests/test_inscricoes.py` | 22 | Inscrição de participante, bloqueio para Admin/Organizador (`403`), duplicidade (`400`), lotação (`400`), evento inativo (`400`) ou inexistente (`404`), restrição de dono (`403`), cancelamento, exclusão, check-in (`presente`) e emissão automática de certificado. |
 | `tests/test_usuarios.py` | 15 | Cadastro público sempre `participante`, normalização de e-mail, hash bcrypt, e-mail repetido (`400`), listagem sem senha, alteração de perfil e exclusão restritos a Admin, perfil inválido (`422`), auto-remoção de Admin (`400`). |
+| `tests/test_emails.py` | 5 | Histórico SMTP restrito a `admingest@gmail.com` (`401`, `403`, ordenação e status `enviado`/`erro`/`ignorado`). |
 
 ---
 
@@ -62,13 +63,14 @@ Inspeção direta do schema gerado por `app.openapi()` em `main.py`:
 
 - **Título:** `API de Gestão de Eventos Acadêmicos`
 - **Versão:** `2.0.0`
-- **Tags configuradas:** `Usuários`, `Eventos`, `Inscrições`, `Certificados`, `Infraestrutura`
+- **Tags configuradas:** `Usuários`, `Eventos`, `Inscrições`, `Certificados`, `E-mails`, `Infraestrutura`
 - **Esquema de autenticação (`securitySchemes`):** `OAuth2PasswordBearer` (apontando para `/api/v1/usuarios/login`)
-- **Rotas documentadas (`15`):**
+- **Rotas documentadas (`16`):**
   - `/api/v1/usuarios/`, `/api/v1/usuarios/login`, `/api/v1/usuarios/esqueci-senha`, `/api/v1/usuarios/redefinir-senha`, `/api/v1/usuarios/me`, `/api/v1/usuarios/{usuario_id}`, `/api/v1/usuarios/{usuario_id}/perfil`
   - `/api/v1/eventos/`, `/api/v1/eventos/{evento_id}`
   - `/api/v1/inscricoes/`, `/api/v1/inscricoes/{inscricao_id}`
   - `/api/v1/certificados/`, `/api/v1/certificados/{certificado_id}`, `/api/v1/certificados/{certificado_id}/reenviar`
+  - `/api/v1/emails/`
   - `/health`
 - **Schemas Pydantic expostos (`14`):** `UsuarioCriar`, `UsuarioPerfilUpdate`, `UsuarioResponse`, `EventoCreate`, `EventoUpdate`, `EventoResponse`, `InscricaoCreate`, `InscricaoUpdate`, `InscricaoResponse`, `CertificadoCreate`, `CertificadoResponse`, `Body_login_api_v1_usuarios_login_post`, `HTTPValidationError`, `ValidationError`.
 

@@ -1,4 +1,5 @@
 """Serviço de envio de e-mails transacionais via SMTP e geração de certificado personalizado."""
+from datetime import datetime, timezone
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
 import html
@@ -96,16 +97,42 @@ def _smtp_configurado() -> bool:
     )
 
 
+def _registrar_historico_email(
+    destinatario: str,
+    assunto: str,
+    tipo: str,
+    status_envio: str,
+    erro: str | None = None,
+) -> None:
+    """Grava o registro do envio SMTP na coleção 'emails_enviados' do Firestore."""
+    try:
+        from core.database import db
+
+        db.collection("emails_enviados").add({
+            "destinatario": destinatario or "(sem destinatário)",
+            "assunto": assunto,
+            "tipo": tipo,
+            "status": status_envio,
+            "erro": erro,
+            "enviado_em": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as exc:
+        logger.warning("Não foi possível gravar histórico de e-mail: %s", exc)
+
+
 def enviar_email(
     destinatario: str,
     assunto: str,
     corpo_texto: str,
     corpo_html: str,
     anexos: list[tuple[str, bytes, str, str]] | None = None,
+    tipo: str = "geral",
 ) -> bool:
     """Envia e-mail multipart (texto plano + HTML + anexos opcionais) com cabeçalhos antispam."""
     if not destinatario or not _smtp_configurado():
-        logger.info("Envio de e-mail ignorado (SMTP não configurado ou destinatário vazio).")
+        motivo = "Destinatário vazio" if not destinatario else "SMTP não configurado no .env"
+        logger.info("Envio de e-mail ignorado (%s).", motivo)
+        _registrar_historico_email(destinatario, assunto, tipo, "ignorado", motivo)
         return False
 
     msg = EmailMessage()
@@ -134,9 +161,11 @@ def enviar_email(
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                 server.send_message(msg)
         logger.info("E-mail enviado com sucesso para %s.", destinatario)
+        _registrar_historico_email(destinatario, assunto, tipo, "enviado")
         return True
     except Exception as exc:
         logger.error("Erro ao enviar e-mail para %s: %s", destinatario, exc)
+        _registrar_historico_email(destinatario, assunto, tipo, "erro", str(exc))
         return False
 
 
@@ -185,7 +214,13 @@ def enviar_email_confirmacao_inscricao(
 </body>
 </html>"""
 
-    return enviar_email(email_destino, assunto, corpo_texto, corpo_html)
+    return enviar_email(
+        email_destino,
+        assunto,
+        corpo_texto,
+        corpo_html,
+        tipo="confirmacao_inscricao",
+    )
 
 
 def enviar_email_certificado(
@@ -239,7 +274,14 @@ def enviar_email_certificado(
         anexos.append((f"certificado_{slug}.pdf", pdf_bytes, "application", "pdf"))
         anexos.append((f"certificado_{slug}.jpg", jpg_bytes, "image", "jpeg"))
 
-    return enviar_email(email_destino, assunto, corpo_texto, corpo_html, anexos=anexos)
+    return enviar_email(
+        email_destino,
+        assunto,
+        corpo_texto,
+        corpo_html,
+        anexos=anexos,
+        tipo="certificado",
+    )
 
 
 def enviar_email_recuperacao_senha(
@@ -286,5 +328,11 @@ def enviar_email_recuperacao_senha(
 </body>
 </html>"""
 
-    return enviar_email(email_destino, assunto, corpo_texto, corpo_html)
+    return enviar_email(
+        email_destino,
+        assunto,
+        corpo_texto,
+        corpo_html,
+        tipo="recuperacao_senha",
+    )
 
