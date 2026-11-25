@@ -1,6 +1,8 @@
 from datetime import date
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
+
+StatusEvento = Literal["ativo", "concluido", "cancelado"]
 
 
 class EventoCreate(BaseModel):
@@ -11,11 +13,11 @@ class EventoCreate(BaseModel):
 
 
 class EventoUpdate(BaseModel):
-    titulo: Optional[str] = Field(None, description="Novo título do evento", examples=["Semana de Computação"])
+    titulo: Optional[str] = Field(None, min_length=3, description="Novo título do evento", examples=["Semana de Computação"])
     descricao: Optional[str] = Field(None, description="Nova descrição do evento")
     data_evento: Optional[date] = Field(None, description="Nova data do evento")
     capacidade: Optional[int] = Field(None, description="Nova capacidade máxima (> 0)")
-    status: Optional[str] = Field(None, description="Status do evento (ativo, concluido, cancelado)", examples=["ativo"])
+    status: Optional[StatusEvento] = Field(None, description="Status do evento (ativo, concluido, cancelado)", examples=["ativo"])
 
 
 class EventoResponse(BaseModel):

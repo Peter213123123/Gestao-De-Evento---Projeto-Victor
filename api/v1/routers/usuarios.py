@@ -21,22 +21,23 @@ router = APIRouter()
     },
 )
 def criar_usuario(usuario: UsuarioCriar):
-    existente = db.collection("usuarios").where("email", "==", usuario.email).limit(1).get()
+    email_normalizado = usuario.email.strip().lower()
+    existente = db.collection("usuarios").where("email", "==", email_normalizado).limit(1).get()
     if existente:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado no sistema")
 
     senha_criptografada = get_password_hash(usuario.senha)
     dados_usuario = {
-        "nome": usuario.nome,
-        "email": usuario.email,
+        "nome": usuario.nome.strip(),
+        "email": email_normalizado,
         "senha": senha_criptografada,
         "tipo_perfil": PARTICIPANTE,  # cadastro público nunca cria admin/organizador
     }
     novo_doc = db.collection("usuarios").add(dados_usuario)
     return {
         "id": novo_doc[1].id,
-        "nome": usuario.nome,
-        "email": usuario.email,
+        "nome": dados_usuario["nome"],
+        "email": email_normalizado,
         "tipo_perfil": PARTICIPANTE,
     }
 
@@ -166,7 +167,8 @@ def alterar_perfil(
 )
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """Endpoint de Login usando OAuth2PasswordRequestForm (username recebe o email)."""
-    docs = db.collection("usuarios").where("email", "==", form_data.username).limit(1).get()
+    email_normalizado = form_data.username.strip().lower()
+    docs = db.collection("usuarios").where("email", "==", email_normalizado).limit(1).get()
     if not docs:
         raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
 

@@ -89,3 +89,9 @@ def test_nao_exclui_evento_com_inscricoes_ativas(client, admin, participante, no
     assert resp.json()["error"] == "BadRequest"
     assert fake_db.collection("eventos").document(evento_id).get().exists
 
+
+def test_editar_evento_com_status_ou_titulo_invalido_retorna_422(client, organizador, novo_evento):
+    evento_id = novo_evento()
+    assert client.put(f"{BASE}{evento_id}", json={"status": "invalido"}, headers=organizador["headers"]).status_code == 422
+    assert client.put(f"{BASE}{evento_id}", json={"titulo": "ab"}, headers=organizador["headers"]).status_code == 422
+

@@ -79,7 +79,7 @@ def criar_inscricao(
                 raise HTTPException(status_code=400, detail="O participante já está inscrito neste evento")
 
     capacidade = int(evento_data.get("capacidade", 0))
-    if capacidade > 0 and total_ativas >= capacidade:
+    if total_ativas >= capacidade:
         raise HTTPException(status_code=400, detail="Não é possível realizar a inscrição. O evento atingiu sua capacidade máxima.")
 
     dados = inscricao.model_dump()
