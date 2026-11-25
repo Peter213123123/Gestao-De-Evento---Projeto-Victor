@@ -44,14 +44,14 @@ f23b1db Add Firebase initial setup and infrastructure details
 
 Comando executado: `.venv/bin/pytest -v`
 
-**Resultado:** `68 passed, 2 warnings in 1.32s` (100% aprovados).
+**Resultado:** `73 passed` (100% aprovados).
 
 | Arquivo de Teste | Quantidade | Cenários Cobertos |
 | :--- | :---: | :--- |
 | `tests/test_auth.py` | 10 | Login válido, senha/e-mail inválidos (`401`), sem token (`401`), token inválido/expirado/outra chave (`401`), perfil proibido (`403`), `/usuarios/me` (`200`). |
-| `tests/test_certificados.py` | 8 | Emissão por Admin/Organizador (`201`), bloqueio para participante (`403`), sem presença (`400`), duplicidade (`400`), usuário inexistente (`404`), exclusão (`403`). |
+| `tests/test_certificados.py` | 12 | Emissão por Admin/Organizador (`201`), bloqueio para participante (`403`), sem presença (`400`), duplicidade (`400`), usuário inexistente (`404`), exclusão (`403`), reenvio SMTP mockado (`200`/`403`/`404`) e geração PDF/JPG (`Pillow`). |
 | `tests/test_eventos.py` | 15 | Criação/edição por Admin/Organizador, exclusão apenas por Admin, data no passado (`400`), capacidade `<= 0` (`400`), exclusão com inscrições ativas (`400`). |
-| `tests/test_inscricoes.py` | 21 | Inscrição de participante, bloqueio para Admin/Organizador (`403`), duplicidade (`400`), lotação (`400`), evento inativo (`400`) ou inexistente (`404`), restrição de dono (`403`), cancelamento, exclusão e check-in (`presente`). |
+| `tests/test_inscricoes.py` | 22 | Inscrição de participante, bloqueio para Admin/Organizador (`403`), duplicidade (`400`), lotação (`400`), evento inativo (`400`) ou inexistente (`404`), restrição de dono (`403`), cancelamento, exclusão, check-in (`presente`) e emissão automática de certificado. |
 | `tests/test_usuarios.py` | 14 | Cadastro público sempre `participante`, hash bcrypt, e-mail repetido (`400`), listagem sem senha, alteração de perfil e exclusão restritos a Admin, perfil inválido (`422`), auto-remoção de Admin (`400`). |
 
 ---
@@ -64,11 +64,11 @@ Inspeção direta do schema gerado por `app.openapi()` em `main.py`:
 - **Versão:** `2.0.0`
 - **Tags configuradas:** `Usuários`, `Eventos`, `Inscrições`, `Certificados`, `Infraestrutura`
 - **Esquema de autenticação (`securitySchemes`):** `OAuth2PasswordBearer` (apontando para `/api/v1/usuarios/login`)
-- **Rotas documentadas (`12`):**
+- **Rotas documentadas (`13`):**
   - `/api/v1/usuarios/`, `/api/v1/usuarios/login`, `/api/v1/usuarios/me`, `/api/v1/usuarios/{usuario_id}`, `/api/v1/usuarios/{usuario_id}/perfil`
   - `/api/v1/eventos/`, `/api/v1/eventos/{evento_id}`
   - `/api/v1/inscricoes/`, `/api/v1/inscricoes/{inscricao_id}`
-  - `/api/v1/certificados/`, `/api/v1/certificados/{certificado_id}`
+  - `/api/v1/certificados/`, `/api/v1/certificados/{certificado_id}`, `/api/v1/certificados/{certificado_id}/reenviar`
   - `/health`
 - **Schemas Pydantic expostos (`14`):** `UsuarioCriar`, `UsuarioPerfilUpdate`, `UsuarioResponse`, `EventoCreate`, `EventoUpdate`, `EventoResponse`, `InscricaoCreate`, `InscricaoUpdate`, `InscricaoResponse`, `CertificadoCreate`, `CertificadoResponse`, `Body_login_api_v1_usuarios_login_post`, `HTTPValidationError`, `ValidationError`.
 

@@ -43,6 +43,9 @@ API REST para centralizar a gestão de eventos acadêmicos: criação de eventos
 16. [Protótipo Inicial](#16-protótipo-inicial)
 17. [Implementações Realizadas](#17-implementações-realizadas)
 18. [Entregáveis e Evidências](#18-entregáveis-e-evidências)
+19. [Melhorias de Arquitetura, Organização e Qualidade de Código](#19-melhorias-de-arquitetura-organização-e-qualidade-de-código)
+20. [Principais Decisões Técnicas e Dificuldades Enfrentadas](#20-principais-decisões-técnicas-e-dificuldades-enfrentadas)
+21. [Versionamento e Publicação em Produção (HTTPS)](#21-versionamento-e-publicação-em-produção-https)
 
 ---
 
@@ -220,10 +223,11 @@ Legenda: 🌐 público · 🔒 exige token (sem token → `401`) · ✅ permitid
 | `POST /api/v1/inscricoes/` | 🔒 | ❌ | ❌ | ✅ | O `id_usuario` precisa ser o do token |
 | `GET /api/v1/inscricoes/` | 🔒 | ✅ | ✅ | ❌ | Lista os inscritos |
 | `PUT /api/v1/inscricoes/{id}` (`cancelada`) | 🔒 | ❌ | ❌ | ✅ | Somente a própria inscrição |
-| `PUT /api/v1/inscricoes/{id}` (`presente`) | 🔒 | ✅ | ✅ | ❌ | Registro de presença (check-in) |
+| `PUT /api/v1/inscricoes/{id}` (`presente`) | 🔒 | ✅ | ✅ | ❌ | Registro de presença (check-in) com emissão e envio automático do certificado |
 | `DELETE /api/v1/inscricoes/{id}` | 🔒 | ❌ | ❌ | ✅ | Somente a própria inscrição |
 | `GET /api/v1/certificados/` | 🔒 | ✅ | ✅ | ✅ | — |
-| `POST /api/v1/certificados/` | 🔒 | ✅ | ✅ | ❌ | — |
+| `POST /api/v1/certificados/` | 🔒 | ✅ | ✅ | ❌ | Emite certificado e envia PDF/JPG por e-mail |
+| `POST /api/v1/certificados/{id}/reenviar` | 🔒 | ✅ | ✅ | ❌ | Reenvia o certificado por e-mail ao participante |
 | `DELETE /api/v1/certificados/{id}` | 🔒 | ✅ | ✅ | ❌ | — |
 
 ### 10.3 Erros de acesso
@@ -254,22 +258,46 @@ Depois disso, o admin promove organizadores por `PATCH /api/v1/usuarios/{id}/per
 
 ## 11. Estrutura do Projeto
 
-Organizada para escalabilidade, separando responsabilidades:
+Organizada em camadas com separação de responsabilidades:
 
 ```text
-app/
+.
 ├── api/
+│   ├── api.py                        # Agregador dos routers da v1
 │   └── v1/
 │       └── routers/
-│           ├── usuarios.py
-│           ├── eventos.py
-│           └── inscricoes.py
+│           ├── usuarios.py           # Cadastro, login OAuth2/JWT, /me e gestão de perfis
+│           ├── eventos.py            # CRUD de eventos acadêmicos
+│           ├── inscricoes.py         # Inscrições, check-in e emissão automática de certificado
+│           └── certificados.py       # Emissão, listagem, reenvio por e-mail e exclusão
 ├── core/
-│   ├── config.py        # Variáveis de ambiente
-│   └── database.py      # Conexão e sessão
-├── models/              # Classes SQLAlchemy
-├── schemas/             # Classes Pydantic (entrada/saída)
-└── main.py              # Instância do FastAPI
+│   ├── auth.py                       # Validação de token JWT (OAuth2PasswordBearer)
+│   ├── config.py                     # Carregamento de variáveis de ambiente (.env)
+│   ├── database.py                   # Inicialização do Firebase Admin + Cloud Firestore
+│   ├── email_service.py              # Envio SMTP transacional e certificado PDF/JPG (Pillow)
+│   ├── exceptions.py                 # Handlers globais de resposta de erro padronizada
+│   ├── permissoes.py                 # Matriz centralizada de permissões RBAC (MATRIZ)
+│   └── security.py                   # Hash bcrypt (Passlib) e criação de tokens JWT
+├── models/                           # Representações de domínio (usuário, evento, inscrição)
+├── schemas/                          # Schemas Pydantic de entrada e saída
+├── static/
+│   ├── login.html                    # Tela de autenticação e cadastro público
+│   ├── dashboard.html                # Painel web administrativo e de participantes
+│   └── certificado_modelo.jpg        # Modelo visual oficial do certificado
+├── tests/                            # Suíte automatizada com Pytest e FakeFirestore
+│   ├── conftest.py
+│   ├── fake_firestore.py
+│   ├── test_auth.py
+│   ├── test_certificados.py
+│   ├── test_eventos.py
+│   ├── test_inscricoes.py
+│   └── test_usuarios.py
+├── main.py                           # Instância FastAPI, Swagger/OpenAPI e arquivos estáticos
+├── Dockerfile                        # Imagem Docker pronta para produção
+├── Procfile                          # Comando de inicialização web
+├── render.yaml                       # Blueprint de deploy no Render
+├── pytest.ini                        # Configuração da suíte de testes
+└── requirements.txt                  # Dependências Python
 ```
 
 ---
@@ -278,25 +306,74 @@ app/
 
 | Tecnologia | Uso no projeto |
 | :--- | :--- |
-| **Python 3 / FastAPI** | Construção da API REST. Alta performance, tipagem estática e Swagger automático. |
-| **SQLite / SQL Server** | SQLite no MVP para desenvolvimento rápido; a arquitetura permite migração fácil para SQL Server em produção. |
-| **SQLAlchemy** | ORM, evitando queries manuais e protegendo contra SQL Injection. |
-| **Alembic** | Versionamento do banco (migrations), mantendo o esquema sincronizado na equipe. |
-| **Pydantic** | Validação rigorosa de entrada e saída, com erros claros para JSON inválido. |
+| **Python 3 / FastAPI** | Construção da API REST com tipagem estática, alta performance e Swagger/OpenAPI 3.1 automático. |
+| **Uvicorn** | Servidor ASGI para execução local e em produção. |
+| **Google Cloud Firestore** | Banco de dados NoSQL em nuvem (`firebase-admin`), garantindo persistência real fora do container. |
+| **Pydantic / pydantic-settings** | Validação rigorosa de entrada/saída e leitura tipada de configurações. |
+| **PyJWT** | Geração e verificação de tokens JWT (`HS256`) com expiração configurável (`exp`). |
+| **Passlib + Bcrypt** | Hashing seguro de senhas antes da persistência no banco. |
+| **Pillow + smtplib** | Preenchimento dinâmico do modelo de certificado em PDF/JPG e envio por e-mail via SMTP. |
+| **Pytest + HTTPX** | Suíte de testes automatizados cobrindo autenticação, RBAC, CRUDs e regras de negócio. |
+| **Docker / Render** | Empacotamento e configuração para publicação em ambiente HTTPS. |
 
 ---
 
-## 13. Banco de Dados e Migrations
+## 13. Persistência e Instalação / Execução
 
-- **Banco do MVP:** SQLite (arquivo local).
-- **Migrations:** controladas via Alembic.
+### 13.1 Persistência em Nuvem (Cloud Firestore)
 
-Comandos iniciais utilizados:
+A aplicação utiliza **Cloud Firestore** (coleções `usuarios`, `eventos`, `inscricoes` e `certificados`). As credenciais são carregadas por `core/database.py` a partir de uma das três fontes (em ordem de prioridade):
+
+1. `FIREBASE_CREDENTIALS_JSON` — conteúdo JSON completo da conta de serviço (ideal para Render/cloud).
+2. `FIREBASE_CREDENTIALS_BASE64` — JSON codificado em Base64.
+3. `FIREBASE_CREDENTIALS_PATH` — caminho local para o arquivo `firebase.json`.
+
+### 13.2 Variáveis de Ambiente (`.env`)
+
+Crie um arquivo `.env` na raiz do projeto (nunca versionado no Git):
+
+```env
+SECRET_KEY="sua-chave-secreta-forte"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+FIREBASE_CREDENTIALS_PATH="firebase.json"
+
+# Opcional: envio de e-mails transacionais (confirmação e certificado)
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=587
+SMTP_USER="seu-email@gmail.com"
+SMTP_PASSWORD="sua-senha-de-app"
+SMTP_FROM_EMAIL="seu-email@gmail.com"
+SMTP_FROM_NAME="Gestão de Eventos Acadêmicos"
+SMTP_USE_TLS=true
+```
+
+### 13.3 Execução Local
 
 ```bash
-alembic init alembic
-alembic revision --autogenerate -m "criacao_tabelas_iniciais_usuario_evento_inscricao"
-alembic upgrade head
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+- **Painel Web:** `http://127.0.0.1:8000/login` e `http://127.0.0.1:8000/dashboard`
+- **Swagger / OpenAPI:** `http://127.0.0.1:8000/docs`
+- **Healthcheck:** `http://127.0.0.1:8000/health`
+
+### 13.4 Execução via Docker
+
+```bash
+docker build -t eventos-api .
+docker run -p 8000:8000 --env-file .env eventos-api
+```
+
+### 13.5 Execução dos Testes Automatizados
+
+Os testes utilizam `FakeFirestore` em memória (`tests/conftest.py`), dispensando credenciais reais do Firebase durante a execução:
+
+```bash
+pytest -v
 ```
 
 ---
@@ -360,6 +437,9 @@ O MVP técnico já possui:
 - [x] **7.** Rotas de usuário (cadastro e login)
 - [x] **8.** Proteção de rotas, revisão e evidências
 - [x] **9.** Perfis de usuário e matriz de permissões aplicada aos endpoints (`core/permissoes.py`)
+- [x] **10.** Módulo completo de Certificados (emissão manual, automática no check-in e reenvio por e-mail)
+- [x] **11.** Envio transacional por SMTP com certificado personalizado em PDF/JPG (`core/email_service.py`)
+- [x] **12.** Painel web completo (`static/login.html` e `static/dashboard.html`) e preparação para deploy (`render.yaml`, `Dockerfile`, `Procfile`)
 
 ## 18. Entregáveis e Evidências
 
@@ -385,22 +465,59 @@ Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscri
 
 ### 18.4 Testes Automatizados (Pytest)
 
-**Status:** ✅ Concluído — **68/68 testes aprovados (100% PASSED)**.
+**Status:** ✅ Concluído — **73/73 testes aprovados (100% PASSED)**.
 
-| Arquivo | Cobertura |
-| :--- | :--- |
-| `tests/test_auth.py` | Fluxos de login bem-sucedidos e com falha, tokens expirados e inválidos. |
-| `tests/test_eventos.py` | Criação, listagem, edição e exclusão de eventos por perfil. |
-| `tests/test_inscricoes.py` | Regras de capacidade, duplicidade e restrição de dono. |
-| `tests/test_certificados.py` | Emissão de certificados. |
-| `tests/test_usuarios.py` | Gerenciamento de perfis administrativos. |
+| Arquivo | Quantidade | Cobertura |
+| :--- | :---: | :--- |
+| `tests/test_auth.py` | 10 | Login válido, falhas de credencial (`401`), tokens expirados/inválidos, perfil proibido (`403`) e `/usuarios/me`. |
+| `tests/test_eventos.py` | 15 | Criação, listagem, edição e exclusão por perfil; bloqueio de data passada, capacidade `<= 0` e evento com inscritos. |
+| `tests/test_inscricoes.py` | 22 | Regras de capacidade, duplicidade, dono do recurso, cancelamento, check-in (`presente`) e emissão automática de certificado. |
+| `tests/test_certificados.py` | 12 | Emissão por Admin/Organizador, presença obrigatória, duplicidade, reenvio SMTP mockado e geração PDF/JPG com `Pillow`. |
+| `tests/test_usuarios.py` | 14 | Cadastro público sempre `participante`, hash bcrypt, e-mail único, alteração de perfil e exclusão restrita a Admin. |
 
 Para executar:
 
 ```bash
-pytest
+pytest -v
 ```
 
 ### 18.5 Sincronização do Repositório (Git & GitHub)
 
-**Status:** ✅ Concluído e atualizado.
+**Status:** ✅ Concluído e atualizado (`main`, `SMTP`, `deploy-render` e tag `v2.0.0`).
+
+---
+
+## 19. Melhorias de Arquitetura, Organização e Qualidade de Código
+
+1. **Matriz Centralizada de Permissões RBAC (`core/permissoes.py`):**
+   Política de autorização concentrada no dicionário `MATRIZ` e aplicada declarativamente nas rotas via `Depends(permissao("nome_da_acao"))`, eliminando verificações duplicadas nos endpoints.
+2. **Padronização Global de Erros (`core/exceptions.py` + `main.py`):**
+   Handlers globais para `HTTPException`, `RequestValidationError` e `Exception`, garantindo que toda falha (`400`, `401`, `403`, `404`, `422`, `500`) siga o mesmo envelope JSON (`success`, `error`, `message`).
+3. **Carregamento Flexível de Credenciais Firebase (`core/database.py`):**
+   Suporte automático a `FIREBASE_CREDENTIALS_JSON`, `FIREBASE_CREDENTIALS_BASE64` e `FIREBASE_CREDENTIALS_PATH`, permitindo rodar localmente com arquivo e na nuvem (Render/Docker) via variáveis de ambiente sem versionar segredos.
+4. **Serviço Desacoplado de E-mail e Certificados (`core/email_service.py`):**
+   Envio assíncrono em `BackgroundTasks` com geração dinâmica de PDF/JPG sobre o modelo oficial (`Pillow`) e fallback seguro quando o SMTP não está configurado.
+
+---
+
+## 20. Principais Decisões Técnicas e Dificuldades Enfrentadas
+
+### Decisões Técnicas
+- **Migração para Cloud Firestore:** garante persistência real em nuvem independente de containers efêmeros (como no plano gratuito do Render), substituindo bancos locais em arquivo.
+- **Cadastro público restrito a `participante`:** removeu-se a escolha de perfil da tela pública (`/login`), deixando a promoção para `organizador` ou `admin` exclusiva ao Administrador autenticado via `PATCH /api/v1/usuarios/{id}/perfil`.
+- **SMTP com `BackgroundTasks` + `Pillow`:** evita dependência de plano pago no Firebase (Blaze/Cloud Functions) para disparo de e-mails e permite gerar o certificado personalizado na própria API.
+- **Testes desacoplados com `FakeFirestore`:** permite validar todos os 73 cenários da API rapidamente e sem acesso à rede ou credenciais de produção.
+
+### Dificuldades Enfrentadas
+- **Compatibilidade `passlib` + `bcrypt`:** versões mais novas do pacote `bcrypt` causavam erro de leitura de atributo interno com `passlib`; resolvido fixando `bcrypt==4.0.1` no `requirements.txt`.
+- **Credenciais do Firebase em Deploy Cloud:** a leitura exclusiva de `firebase.json` dificultava o deploy sem expor chaves no Git; resolvido com suporte a JSON/Base64 em variável de ambiente.
+- **Consistência entre respostas de erro e front-end:** a padronização para `{"success": false, "error": ..., "message": ...}` exigiu atualizar o painel (`static/dashboard.html`) para ler `data.message || data.detail`, ajustar `z-index` dos toasts acima dos modais e incluir `carga_horaria` na emissão automática de certificados no check-in.
+
+---
+
+## 21. Versionamento e Publicação em Produção (HTTPS)
+
+- **Repositório:** `https://github.com/Peter213123123/Gestao-De-Evento---Projeto-Victor.git`
+- **Branches principais:** `main` (versão final integrada), `SMTP` e `deploy-render`.
+- **Tag da versão entregue:** `v2.0.0`.
+- **Deploy (Render):** configurado via `render.yaml` (`uvicorn main:app --host 0.0.0.0 --port $PORT`). No painel do Render, configure as variáveis `FIREBASE_CREDENTIALS_JSON`, `SECRET_KEY` e as variáveis `SMTP_*` para manter persistência real no Firestore e envio de e-mails ativo em HTTPS.
