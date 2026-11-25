@@ -19,6 +19,7 @@ openapi_tags = [
     {"name": "Eventos", "description": "Listagem, criação, edição e exclusão de eventos acadêmicos."},
     {"name": "Inscrições", "description": "Inscrição de participantes, listagem de inscritos, cancelamento e check-in."},
     {"name": "Certificados", "description": "Emissão, listagem e exclusão de certificados para participantes presentes."},
+    {"name": "E-mails", "description": "Histórico de envios SMTP restrito ao administrador principal."},
     {"name": "Infraestrutura", "description": "Endpoints de verificação de saúde da API."},
 ]
 

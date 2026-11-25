@@ -100,6 +100,12 @@
         <span>Usuários</span>
         <span id="count-badge-usuarios" class="ml-1 text-xs px-2 py-0.2 rounded-full bg-slate-700 text-slate-300">0</span>
       </button>
+
+      <button onclick="changeTab('emails')" id="tab-nav-emails" class="hidden tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40 transition">
+        <i class="fa-solid fa-envelope-circle-check"></i>
+        <span>Histórico SMTP</span>
+        <span id="count-badge-emails" class="ml-1 text-xs px-2 py-0.2 rounded-full bg-slate-700 text-slate-300">0</span>
+      </button>
     </div>
 
     <!-- ==================== SEÇÃO: EVENTOS ==================== -->
@@ -269,6 +275,49 @@
             </tr>
           </thead>
           <tbody id="usuarios-table-body" class="divide-y divide-slate-700/60"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== SEÇÃO: HISTÓRICO SMTP (APENAS admingest@gmail.com) ==================== -->
+    <section id="section-emails" class="tab-section space-y-4 hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-xl border border-slate-700/60">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-envelope-circle-check text-cyan-400"></i> Histórico de Envios SMTP
+          </h2>
+          <p class="text-xs text-slate-400">Registro de confirmações de inscrição, certificados e recuperações de senha (acesso exclusivo admingest@gmail.com).</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="carregarEmails()" title="Recarregar Histórico" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition flex items-center gap-2 text-xs px-3">
+            <i class="fa-solid fa-arrows-rotate"></i>
+            <span>Atualizar</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="emails-loading" class="text-center py-12 text-slate-400">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-cyan-500 mb-2"></i>
+        <p class="text-sm">Carregando histórico de envios...</p>
+      </div>
+
+      <div id="emails-empty" class="hidden text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700/50">
+        <i class="fa-regular fa-envelope-open text-4xl text-slate-500 mb-2"></i>
+        <p class="text-sm font-medium text-slate-300">Nenhum envio de e-mail registrado ainda.</p>
+      </div>
+
+      <div id="emails-table-wrapper" class="overflow-x-auto rounded-xl border border-slate-700/80 bg-slate-800/50 hidden">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-800 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-700">
+            <tr>
+              <th class="p-4">Data / Hora</th>
+              <th class="p-4">Destinatário</th>
+              <th class="p-4">Tipo</th>
+              <th class="p-4">Assunto</th>
+              <th class="p-4">Status</th>
+            </tr>
+          </thead>
+          <tbody id="emails-table-body" class="divide-y divide-slate-700/60"></tbody>
         </table>
       </div>
     </section>
@@ -491,16 +540,28 @@
     let cacheInscricoes = [];
     let cacheCertificados = [];
 
+    function podeVerHistoricoEmails() {
+      return Boolean(
+        currentUser
+        && (currentUser.tipo_perfil || '').toLowerCase() === 'admin'
+        && (currentUser.email || '').trim().toLowerCase() === 'admingest@gmail.com'
+      );
+    }
+
     // Inicialização
     document.addEventListener('DOMContentLoaded', async () => {
       await carregarPerfil();
       // Carrega dados iniciais
-      await Promise.all([
+      const tarefas = [
         carregarEventos(),
         carregarUsuarios(),
         carregarInscricoes(),
         carregarCertificados()
-      ]);
+      ];
+      if (podeVerHistoricoEmails()) {
+        tarefas.push(carregarEmails());
+      }
+      await Promise.all(tarefas);
     });
 
     function escapeHtml(texto) {
@@ -547,18 +608,24 @@
     // NAVEGAÇÃO DE ABAS
     // ----------------------------------------------------
     function changeTab(tabName) {
-      const tabs = ['eventos', 'inscricoes', 'certificados', 'usuarios'];
+      const tabs = ['eventos', 'inscricoes', 'certificados', 'usuarios', 'emails'];
+      if (tabName === 'emails' && !podeVerHistoricoEmails()) return;
       tabs.forEach(t => {
         const navBtn = document.getElementById(`tab-nav-${t}`);
         const section = document.getElementById(`section-${t}`);
+        if (!navBtn || !section) return;
         if (t === tabName) {
           navBtn.className = 'tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-indigo-500 text-indigo-400 bg-slate-800/60 transition';
           section.classList.remove('hidden');
         } else {
-          navBtn.className = 'tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40 transition';
+          const oculto = t === 'emails' && !podeVerHistoricoEmails() ? 'hidden ' : '';
+          navBtn.className = `${oculto}tab-btn px-4 py-3 rounded-t-xl text-sm font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/40 transition`;
           section.classList.add('hidden');
         }
       });
+      if (tabName === 'emails' && podeVerHistoricoEmails()) {
+        carregarEmails();
+      }
     }
 
     // ----------------------------------------------------
@@ -596,6 +663,9 @@
 
         if (perfil === 'admin') {
           badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30';
+          if (podeVerHistoricoEmails()) {
+            document.getElementById('tab-nav-emails').classList.remove('hidden');
+          }
         } else if (perfil === 'organizador') {
           badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30';
         } else {
@@ -1142,8 +1212,14 @@
         if (!resp.ok) throw new Error(data.message || data.detail || 'Erro ao reenviar certificado');
 
         showToast(data.message || 'Certificado reenviado por e-mail!');
+        if (podeVerHistoricoEmails()) {
+          await carregarEmails();
+        }
       } catch (err) {
         showToast(err.message, 'error');
+        if (podeVerHistoricoEmails()) {
+          await carregarEmails();
+        }
       }
     }
 
@@ -1362,6 +1438,81 @@
           sel.appendChild(opt);
         });
       });
+    }
+
+    // ----------------------------------------------------
+    // MÓDULO: HISTÓRICO SMTP (APENAS admingest@gmail.com)
+    // ----------------------------------------------------
+    async function carregarEmails() {
+      if (!podeVerHistoricoEmails()) return;
+      const loading = document.getElementById('emails-loading');
+      const empty = document.getElementById('emails-empty');
+      const wrapper = document.getElementById('emails-table-wrapper');
+      const tbody = document.getElementById('emails-table-body');
+
+      loading.classList.remove('hidden');
+      empty.classList.add('hidden');
+      wrapper.classList.add('hidden');
+      tbody.innerHTML = '';
+
+      try {
+        const resp = await fetch('/api/v1/emails/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loading.classList.add('hidden');
+        if (!resp.ok) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        const lista = await resp.json();
+        document.getElementById('count-badge-emails').textContent = lista.length;
+
+        if (!lista.length) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        wrapper.classList.remove('hidden');
+
+        const tipoLabels = {
+          confirmacao_inscricao: 'Confirmação de Inscrição',
+          certificado: 'Certificado',
+          recuperacao_senha: 'Recuperação de Senha',
+          geral: 'Geral',
+        };
+
+        lista.forEach(item => {
+          const st = (item.status || '').toLowerCase();
+          let badgeClass = 'bg-slate-700 text-slate-300';
+          if (st === 'enviado') badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          if (st === 'erro') badgeClass = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+          if (st === 'ignorado') badgeClass = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+
+          const dataFormatada = item.enviado_em
+            ? new Date(item.enviado_em).toLocaleString('pt-BR')
+            : '-';
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/40 transition';
+          tr.innerHTML = `
+            <td class="p-4 text-xs text-slate-400 whitespace-nowrap">${escapeHtml(dataFormatada)}</td>
+            <td class="p-4 text-white font-medium">${escapeHtml(item.destinatario)}</td>
+            <td class="p-4 text-xs text-cyan-300 font-medium">${escapeHtml(tipoLabels[item.tipo] || item.tipo)}</td>
+            <td class="p-4 text-slate-200">${escapeHtml(item.assunto)}</td>
+            <td class="p-4">
+              <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${badgeClass}">
+                ${escapeHtml(st)}
+              </span>
+              ${item.erro ? `<p class="text-xs text-rose-300 mt-1">${escapeHtml(item.erro)}</p>` : ''}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        loading.classList.add('hidden');
+        empty.classList.remove('hidden');
+      }
     }
 
     // Logout
