@@ -44,11 +44,11 @@ f23b1db Add Firebase initial setup and infrastructure details
 
 Comando executado: `.venv/bin/pytest -v`
 
-**Resultado:** `75 passed` (100% aprovados).
+**Resultado:** `80 passed` (100% aprovados).
 
 | Arquivo de Teste | Quantidade | Cenários Cobertos |
 | :--- | :---: | :--- |
-| `tests/test_auth.py` | 10 | Login válido, senha/e-mail inválidos (`401`), sem token (`401`), token inválido/expirado/outra chave (`401`), perfil proibido (`403`), `/usuarios/me` (`200`). |
+| `tests/test_auth.py` | 15 | Login válido, senha/e-mail inválidos (`401`), sem token (`401`), token inválido/expirado/outra chave (`401`), perfil proibido (`403`), `/usuarios/me` (`200`), `esqueci-senha` e `redefinir-senha`. |
 | `tests/test_certificados.py` | 12 | Emissão por Admin/Organizador (`201`), bloqueio para participante (`403`), sem presença (`400`), duplicidade (`400`), usuário inexistente (`404`), exclusão (`403`), reenvio SMTP mockado (`200`/`403`/`404`) e geração PDF/JPG (`Pillow`). |
 | `tests/test_eventos.py` | 16 | Criação/edição por Admin/Organizador (status/título validados), exclusão apenas por Admin, data no passado (`400`), capacidade `<= 0` (`400`), exclusão com inscrições ativas (`400`). |
 | `tests/test_inscricoes.py` | 22 | Inscrição de participante, bloqueio para Admin/Organizador (`403`), duplicidade (`400`), lotação (`400`), evento inativo (`400`) ou inexistente (`404`), restrição de dono (`403`), cancelamento, exclusão, check-in (`presente`) e emissão automática de certificado. |
@@ -64,8 +64,8 @@ Inspeção direta do schema gerado por `app.openapi()` em `main.py`:
 - **Versão:** `2.0.0`
 - **Tags configuradas:** `Usuários`, `Eventos`, `Inscrições`, `Certificados`, `Infraestrutura`
 - **Esquema de autenticação (`securitySchemes`):** `OAuth2PasswordBearer` (apontando para `/api/v1/usuarios/login`)
-- **Rotas documentadas (`13`):**
-  - `/api/v1/usuarios/`, `/api/v1/usuarios/login`, `/api/v1/usuarios/me`, `/api/v1/usuarios/{usuario_id}`, `/api/v1/usuarios/{usuario_id}/perfil`
+- **Rotas documentadas (`15`):**
+  - `/api/v1/usuarios/`, `/api/v1/usuarios/login`, `/api/v1/usuarios/esqueci-senha`, `/api/v1/usuarios/redefinir-senha`, `/api/v1/usuarios/me`, `/api/v1/usuarios/{usuario_id}`, `/api/v1/usuarios/{usuario_id}/perfil`
   - `/api/v1/eventos/`, `/api/v1/eventos/{evento_id}`
   - `/api/v1/inscricoes/`, `/api/v1/inscricoes/{inscricao_id}`
   - `/api/v1/certificados/`, `/api/v1/certificados/{certificado_id}`, `/api/v1/certificados/{certificado_id}/reenviar`

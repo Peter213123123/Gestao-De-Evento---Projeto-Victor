@@ -240,3 +240,51 @@ def enviar_email_certificado(
         anexos.append((f"certificado_{slug}.jpg", jpg_bytes, "image", "jpeg"))
 
     return enviar_email(email_destino, assunto, corpo_texto, corpo_html, anexos=anexos)
+
+
+def enviar_email_recuperacao_senha(
+    email_destino: str,
+    nome_usuario: str,
+    link_recuperacao: str,
+) -> bool:
+    """Envia e-mail com link temporário (15 min) para redefinição de senha."""
+    assunto = "Recuperação de senha - Gestão de Eventos Acadêmicos"
+    corpo_texto = (
+        f"Olá, {nome_usuario}.\n\n"
+        f"Recebemos uma solicitação para redefinir a sua senha de acesso.\n"
+        f"Acesse o link abaixo (válido por 15 minutos e de uso único):\n\n"
+        f"{link_recuperacao}\n\n"
+        f"Se você não solicitou essa alteração, ignore este e-mail.\n\n"
+        f"Atenciosamente,\n"
+        f"{settings.SMTP_FROM_NAME}"
+    )
+
+    nome_esc = html.escape(nome_usuario)
+    link_esc = html.escape(link_recuperacao)
+    remetente_esc = html.escape(settings.SMTP_FROM_NAME)
+
+    corpo_html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<body style="font-family: Arial, sans-serif; color: #1e293b; background-color: #f8fafc; padding: 24px;">
+  <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px;">
+    <h2 style="margin-top: 0; color: #312e81;">Recuperação de Senha</h2>
+    <p>Olá, <strong>{nome_esc}</strong>.</p>
+    <p>Recebemos uma solicitação para redefinir a sua senha. Clique no botão abaixo para cadastrar uma nova senha (o link expira em <strong>15 minutos</strong>):</p>
+    <p style="text-align: center; margin: 28px 0;">
+      <a href="{link_esc}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; font-weight: bold; padding: 12px 24px; border-radius: 8px;">
+        Redefinir Minha Senha
+      </a>
+    </p>
+    <p style="font-size: 12px; color: #64748b;">
+      Se o botão não funcionar, copie e cole este link no navegador:<br>
+      <span style="word-break: break-all; color: #4338ca;">{link_esc}</span>
+    </p>
+    <p style="font-size: 12px; color: #64748b; margin-top: 24px;">
+      Se você não solicitou a alteração, ignore esta mensagem. Enviado por {remetente_esc}.
+    </p>
+  </div>
+</body>
+</html>"""
+
+    return enviar_email(email_destino, assunto, corpo_texto, corpo_html)
+
