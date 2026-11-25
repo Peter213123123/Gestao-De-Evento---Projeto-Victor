@@ -465,15 +465,15 @@ Validação de propriedade ativa na rota de inscrições (`api/v1/routers/inscri
 
 ### 18.4 Testes Automatizados (Pytest)
 
-**Status:** ✅ Concluído — **73/73 testes aprovados (100% PASSED)**.
+**Status:** ✅ Concluído — **75/75 testes aprovados (100% PASSED)**.
 
 | Arquivo | Quantidade | Cobertura |
 | :--- | :---: | :--- |
 | `tests/test_auth.py` | 10 | Login válido, falhas de credencial (`401`), tokens expirados/inválidos, perfil proibido (`403`) e `/usuarios/me`. |
-| `tests/test_eventos.py` | 15 | Criação, listagem, edição e exclusão por perfil; bloqueio de data passada, capacidade `<= 0` e evento com inscritos. |
+| `tests/test_eventos.py` | 16 | Criação, listagem, edição (com validação de título/status) e exclusão por perfil; bloqueio de data passada, capacidade `<= 0` e evento com inscritos. |
 | `tests/test_inscricoes.py` | 22 | Regras de capacidade, duplicidade, dono do recurso, cancelamento, check-in (`presente`) e emissão automática de certificado. |
 | `tests/test_certificados.py` | 12 | Emissão por Admin/Organizador, presença obrigatória, duplicidade, reenvio SMTP mockado e geração PDF/JPG com `Pillow`. |
-| `tests/test_usuarios.py` | 14 | Cadastro público sempre `participante`, hash bcrypt, e-mail único, alteração de perfil e exclusão restrita a Admin. |
+| `tests/test_usuarios.py` | 15 | Cadastro público sempre `participante`, normalização de e-mail, hash bcrypt, e-mail único, alteração de perfil e exclusão restrita a Admin. |
 
 Para executar:
 

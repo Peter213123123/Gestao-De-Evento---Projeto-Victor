@@ -503,6 +503,15 @@
       ]);
     });
 
+    function escapeHtml(texto) {
+      return String(texto ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     // ----------------------------------------------------
     // NOTIFICAÇÕES (TOAST)
     // ----------------------------------------------------
@@ -517,7 +526,7 @@
       toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border text-white shadow-xl backdrop-blur-md text-sm transition-all duration-300 transform translate-y-2 opacity-0 ${bgColor}`;
       toast.innerHTML = `
         <i class="fa-solid ${icon} text-base"></i>
-        <span>${message}</span>
+        <span>${escapeHtml(message)}</span>
       `;
 
       container.appendChild(toast);
@@ -663,14 +672,14 @@
         card.innerHTML = `
           <div>
             <div class="flex items-start justify-between gap-2 mb-2">
-              <h3 class="font-bold text-white text-base leading-tight">${ev.titulo}</h3>
+              <h3 class="font-bold text-white text-base leading-tight">${escapeHtml(ev.titulo)}</h3>
               <span class="text-xs px-2.5 py-0.5 rounded-full uppercase tracking-wider font-semibold ${
                 ev.status === 'ativo' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-700 text-slate-300'
               }">
-                ${ev.status || 'ativo'}
+                ${escapeHtml(ev.status || 'ativo')}
               </span>
             </div>
-            <p class="text-xs text-slate-400 line-clamp-3 mb-4">${ev.descricao || 'Nenhuma descrição fornecida.'}</p>
+            <p class="text-xs text-slate-400 line-clamp-3 mb-4">${escapeHtml(ev.descricao || 'Nenhuma descrição fornecida.')}</p>
           </div>
 
           <div class="space-y-3 pt-3 border-t border-slate-700/70">
@@ -789,8 +798,10 @@
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir evento');
+        if (!resp.ok) {
+          const data = resp.status !== 204 ? await resp.json() : {};
+          throw new Error(data.message || data.detail || 'Erro ao excluir evento');
+        }
 
         showToast('Evento excluído com sucesso!');
         await carregarEventos();
@@ -819,7 +830,7 @@
         });
 
         const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Falha ao se inscrever no evento');
+        if (!resp.ok) throw new Error(data.message || data.detail || 'Falha ao se inscrever no evento');
 
         showToast('Inscrição confirmada com sucesso!');
         await carregarInscricoes();
@@ -880,8 +891,8 @@
           tr.className = 'hover:bg-slate-800/40 transition';
           tr.innerHTML = `
             <td class="p-4 font-mono text-xs text-slate-400">${ins.id.substring(0, 8)}...</td>
-            <td class="p-4 text-white font-medium">${nomeUsuario}</td>
-            <td class="p-4 text-slate-200">${nomeEvento}</td>
+            <td class="p-4 text-white font-medium">${escapeHtml(nomeUsuario)}</td>
+            <td class="p-4 text-slate-200">${escapeHtml(nomeEvento)}</td>
             <td class="p-4">
               <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${statusBadge}">
                 ${ins.status}
@@ -1051,12 +1062,12 @@
 
               <div>
                 <p class="text-xs text-slate-400">Aluno / Participante</p>
-                <h4 class="text-white font-bold text-base">${user ? user.nome : `ID: ${cert.id_usuario}`}</h4>
+                <h4 class="text-white font-bold text-base">${escapeHtml(user ? user.nome : `ID: ${cert.id_usuario}`)}</h4>
               </div>
 
               <div>
                 <p class="text-xs text-slate-400">Evento</p>
-                <p class="text-sm text-slate-200 font-medium">${ev ? ev.titulo : `ID: ${cert.id_evento}`}</p>
+                <p class="text-sm text-slate-200 font-medium">${escapeHtml(ev ? ev.titulo : `ID: ${cert.id_evento}`)}</p>
               </div>
             </div>
 
@@ -1198,11 +1209,11 @@
             <td class="p-4 font-mono text-xs text-slate-400">${u.id.substring(0, 8)}...</td>
             <td class="p-4 text-white font-medium flex items-center gap-2">
               <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs text-indigo-400 font-bold">
-                ${(u.nome || 'U').charAt(0).toUpperCase()}
+                ${escapeHtml((u.nome || 'U').charAt(0).toUpperCase())}
               </div>
-              <span>${u.nome}</span>
+              <span>${escapeHtml(u.nome)}</span>
             </td>
-            <td class="p-4 text-slate-300">${u.email}</td>
+            <td class="p-4 text-slate-300">${escapeHtml(u.email)}</td>
             <td class="p-4">
               ${isAdmin ? `
                 <select onchange="alterarPerfilUsuario('${u.id}', this.value)" class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-semibold uppercase tracking-wider text-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
@@ -1310,8 +1321,10 @@
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || 'Erro ao excluir usuário');
+        if (!resp.ok) {
+          const data = resp.status !== 204 ? await resp.json() : {};
+          throw new Error(data.message || data.detail || 'Erro ao excluir usuário');
+        }
 
         showToast('Usuário excluído!');
         await carregarUsuarios();

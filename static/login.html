@@ -330,7 +330,7 @@
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.detail || 'Falha ao autenticar. Verifique suas credenciais.');
+          throw new Error(data.message || data.detail || 'Falha ao autenticar. Verifique suas credenciais.');
         }
 
         // Salvar token no localStorage
@@ -403,7 +403,7 @@
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.detail || 'Falha ao criar conta.');
+          throw new Error(data.message || data.detail || 'Falha ao criar conta.');
         }
 
         // Sucesso no cadastro

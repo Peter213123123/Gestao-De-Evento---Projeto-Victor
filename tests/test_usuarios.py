@@ -85,3 +85,15 @@ def test_so_admin_exclui_usuario(client, admin, participante, outro_participante
     assert client.delete(f"{BASE}{outro_participante['id']}", headers=participante["headers"]).status_code == 403
     assert client.delete(f"{BASE}{outro_participante['id']}", headers=admin["headers"]).status_code == 204
 
+
+def test_email_normalizado_evita_duplicidade_e_permite_login(client):
+    resp1 = client.post(BASE, json={"nome": "Ana", "email": "Ana.Teste@Email.COM ", "senha": "senhaforte123"})
+    assert resp1.status_code == 201
+    assert resp1.json()["email"] == "ana.teste@email.com"
+
+    resp_dup = client.post(BASE, json={"nome": "Ana 2", "email": "ana.teste@email.com", "senha": "senhaforte123"})
+    assert resp_dup.status_code == 400
+
+    resp_login = client.post(f"{BASE}login", data={"username": "ANA.TESTE@EMAIL.COM", "password": "senhaforte123"})
+    assert resp_login.status_code == 200
+
